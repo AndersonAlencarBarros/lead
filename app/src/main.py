@@ -18,6 +18,7 @@ async def lifespan(app: FastAPI):
 tags_metadata = [
     {"name": "Webhook", "description": "Recebimento de mensagens externas."},
     {"name": "Conversas", "description": "Consulta de conversas e mensagens."},
+    {"name": "Empresas", "description": "Cadastro e configuração de empresas."},
 ]
 
 app = FastAPI(

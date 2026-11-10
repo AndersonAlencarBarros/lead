@@ -6,7 +6,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-import infraestrutura.orm.orm_conversa  # noqa: F401
+import infraestrutura.orm  # noqa: F401
 from config import get_settings
 from infraestrutura.base import Base
 

@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import text
 from testcontainers.community.postgres import PostgresContainer
 
-import infraestrutura.orm.orm_conversa  # noqa: F401
+import infraestrutura.orm  # noqa: F401
 from config import get_settings
 from infraestrutura.base import Base
 from infraestrutura.session import Session
@@ -41,10 +41,18 @@ async def reset_banco(database_url):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         if engine.dialect.name == "sqlite":
+            await conn.execute(text("DELETE FROM agendamentos"))
+            await conn.execute(text("DELETE FROM leads"))
             await conn.execute(text("DELETE FROM mensagens"))
             await conn.execute(text("DELETE FROM conversas"))
+            await conn.execute(text("DELETE FROM empresas"))
         else:
-            await conn.execute(text("TRUNCATE TABLE mensagens, conversas CASCADE"))
+            await conn.execute(
+                text(
+                    "TRUNCATE TABLE agendamentos, leads, mensagens, "
+                    "conversas, empresas CASCADE"
+                )
+            )
     await Session.dispose()
     yield
     await Session.dispose()

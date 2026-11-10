@@ -12,20 +12,24 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
 )
-from sqlalchemy.orm import registry, relationship
+from sqlalchemy.orm import relationship
 
 from dominio.agregados.conversa import Conversa
 from dominio.objetos_de_valor.conversa import Mensagem
-from infraestrutura.base import Base
-
-mapper_registry = registry(metadata=Base.metadata)
+from infraestrutura.base import Base, mapper_registry
 
 conversas_tabela = Table(
     "conversas",
     Base.metadata,
     Column("id", Uuid(as_uuid=True), primary_key=True, default=uuid4),
     Column("tenant_id", String(255), nullable=False),
-    Column("lead_id", Uuid(as_uuid=True), unique=True, nullable=True),
+    Column(
+        "lead_id",
+        Uuid(as_uuid=True),
+        ForeignKey("leads.id", ondelete="SET NULL"),
+        unique=True,
+        nullable=True,
+    ),
     Column("telefone", String(11), nullable=False),
     Column("teve_intervencao_humana", Boolean, nullable=False, default=False),
     Column("criado_em", DateTime, nullable=False, default=datetime.now),

@@ -1,16 +1,21 @@
 import asyncio
 from datetime import datetime
-from uuid import UUID
 
 import httpx
 from sqlalchemy import select
 
 import main
 from dominio.agregados.conversa import Conversa
+from dominio.agregados.empresa import Empresa
+from dominio.agregados.lead import Lead
 from dominio.objetos_de_valor.conversa import Mensagem, Telefone
+from dominio.objetos_de_valor.empresa import (
+    ConfiguracaoIA,
+    Intervalo,
+    StatusEmpresa,
+    TomDaIA,
+)
 from infraestrutura.unidade_de_trabalho import Dominio, UnidadeDeTrabalho
-
-LEAD_ID = UUID("11111111-1111-1111-1111-111111111111")
 
 
 def _payload(
@@ -28,9 +33,36 @@ def _payload(
 
 
 async def _criar_conversa() -> Conversa:
+    empresa = Empresa(
+        tenant_id="empresa-1",
+        nome="Empresa 1",
+        status=StatusEmpresa.ATIVA,
+        telefone_notificacao="11999999999",
+        configuracao_ia=ConfiguracaoIA(
+            tom=TomDaIA.INFORMAL,
+            pode_dizer_que_e_ia=True,
+            nome_assistente="Ana",
+            horario_atendimento_ia=Intervalo(
+                horario_inicio=datetime(2026, 1, 1, 8, 0),
+                horario_fim=datetime(2026, 1, 1, 18, 0),
+            ),
+        ),
+        regras_gerais=[],
+        cidades_atendidas=[],
+        estagios=[],
+    )
+    async with UnidadeDeTrabalho(Dominio.EMPRESA) as uow:
+        empresa_salva = await uow.dominio.salvar(empresa)
+        await uow.commit()
+
+    lead = Lead(empresa_id=empresa_salva.id, nome="Lead 1")
+    async with UnidadeDeTrabalho(Dominio.LEAD) as uow:
+        lead_salvo = await uow.dominio.salvar(lead)
+        await uow.commit()
+
     conversa = Conversa(
         tenant_id="empresa-1",
-        lead_id=LEAD_ID,
+        lead_id=lead_salvo.id,
         telefone=Telefone("11999999999"),
         mensagens=[
             Mensagem(
@@ -129,7 +161,7 @@ async def test_get_conversa_retorna_mensagens_associadas():
     assert resposta.status_code == 200
     dados = resposta.json()
     assert dados["id"] == str(conversa.id)
-    assert dados["lead_id"] == str(LEAD_ID)
+    assert dados["lead_id"] == str(conversa.lead_id)
     assert [
         mensagem["identificador_da_mensagem"] for mensagem in dados["mensagens"]
     ] == ["msg-1", "msg-2"]

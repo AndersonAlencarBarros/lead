@@ -33,9 +33,13 @@ app/
     │   └── config/
     └── integracao/                   # pytest (+ testcontainers)
         ├── api/
-        │   └── conversa/
-        └── infraestrutura/
-            └── banco/
+        │   ├── conversa/
+        │   └── empresa/
+        ├── infraestrutura/
+        │   └── banco/
+        └── servicos/
+            ├── agendamento/
+            └── lead/
 ```
 
 `main` e `config` são módulos de topo (importados por nome); `api`, `dominio`,
@@ -92,6 +96,7 @@ revision seguinte.
 
 | Método | Rota | Descrição |
 | ------ | ---- | --------- |
+| POST | `/empresas` | Cria empresa; `201` ou `409` se o tenant já existir |
 | POST | `/webhook/mensagem` | Recebe mensagem: `201` para nova, `204` para duplicada |
 | GET | `/conversas/{tenant_id}/{telefone}` | Retorna conversa e mensagens; `404` se não existir |
 

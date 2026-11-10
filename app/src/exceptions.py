@@ -19,6 +19,26 @@ class RespostaDoUsuario(HTTPException):
         )
 
 
+class EmpresaJaCadastrada(RespostaDoUsuario):
+    status_code = status.HTTP_409_CONFLICT
+    detail = "Empresa já cadastrada para este tenant"
+
+
+class LeadJaCadastrado(RespostaDoUsuario):
+    status_code = status.HTTP_409_CONFLICT
+    detail = "Lead já cadastrado para esta empresa e telefone"
+
+
+class LeadNaoEncontrado(RespostaDoUsuario):
+    status_code = status.HTTP_404_NOT_FOUND
+    detail = "Lead não encontrado"
+
+
+class AgendamentoNaoEncontrado(RespostaDoUsuario):
+    status_code = status.HTTP_404_NOT_FOUND
+    detail = "Agendamento não encontrado"
+
+
 class ConversaNaoEncontrada(RespostaDoUsuario):
     status_code = status.HTTP_404_NOT_FOUND
     detail = "Conversa não encontrada"

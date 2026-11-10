@@ -14,19 +14,6 @@ class TomDaIA(StrEnum):
     FORMAL = "formal"
 
 
-class HorarioInvalido(ValueError):
-    """Horário de início posterior ou igual ao de fim."""
-
-
-class Intervalo:
-    horario_inicio: datetime
-    horario_fim: datetime
-
-    def __post_init__(self):
-        if self.horario_inicio >= self.horario_fim:
-            raise HorarioInvalido("Horário Inválido")
-
-
 class Cidade(str): ...
 
 
@@ -38,6 +25,19 @@ class RegrasGerais(str): ...
 
 class Estagio(str): ...
 
+@dataclass
+class Intervalo:
+    horario_inicio: datetime
+    horario_fim: datetime
+
+
+    def __post_init__(self):
+        class HorarioInvalido(ValueError):
+            """Horário de início posterior ou igual ao de fim."""
+
+        if self.horario_inicio >= self.horario_fim:
+            raise HorarioInvalido("Horário Inválido")
+
 
 @dataclass
 class ConfiguracaoIA:
@@ -45,3 +45,14 @@ class ConfiguracaoIA:
     pode_dizer_que_e_ia: bool
     nome_assistente: str
     horario_atendimento_ia: Intervalo
+
+
+@dataclass
+class DadosEmpresa:
+    configuracao_ia: ConfiguracaoIA
+    regras_gerais: list[RegrasGerais]
+    cidades_atendidas: list[Cidade]
+    estagios: list[Estagio]
+
+
+

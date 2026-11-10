@@ -3,7 +3,13 @@ from typing import NamedTuple
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from infraestrutura.session import Session
+from repositorio.agendamento import (
+    AgendamentoDominioRepositorio,
+    AgendamentoLeituraRepositorio,
+)
 from repositorio.conversa import ConversaDominioRepositorio, ConversaLeituraRepositorio
+from repositorio.empresa import EmpresaDominioRepositorio, EmpresaLeituraRepositorio
+from repositorio.lead import LeadDominioRepositorio, LeadLeituraRepositorio
 
 
 class ParRepositorio[TDominio, TLeitura](NamedTuple):
@@ -16,9 +22,21 @@ class ParRepositorio[TDominio, TLeitura](NamedTuple):
 class Dominio:
     """Catálogo de domínios com tuplas (repositório de domínio, repositório de leitura)."""
 
+    AGENDAMENTO = ParRepositorio(
+        dominio=AgendamentoDominioRepositorio,
+        leitura=AgendamentoLeituraRepositorio,
+    )
     CONVERSA = ParRepositorio(
         dominio=ConversaDominioRepositorio,
         leitura=ConversaLeituraRepositorio,
+    )
+    EMPRESA = ParRepositorio(
+        dominio=EmpresaDominioRepositorio,
+        leitura=EmpresaLeituraRepositorio,
+    )
+    LEAD = ParRepositorio(
+        dominio=LeadDominioRepositorio,
+        leitura=LeadLeituraRepositorio,
     )
 
 
