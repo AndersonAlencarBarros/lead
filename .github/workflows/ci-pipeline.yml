@@ -1,0 +1,46 @@
+name: CI Pipeline to staging/production environment
+on:
+  pull_request:
+    branches:
+      - staging
+      - main
+  push:
+     branches:
+       - main
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Setup, test, and build project
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Poetry
+        run: |
+          python -m pip install poetry==2.5.1
+          poetry config virtualenvs.create false
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pypoetry/virtualenvs
+          key: ${{ runner.os }}-poetry-${{ hashFiles('app/poetry.lock') }}
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Test application
+        run: poetry run pytest
+
+      - name: Build application
+        run: |
+          echo "Run command to build the application if present"
+          poetry build

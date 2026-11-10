@@ -1,0 +1,28 @@
+# Teste de load: 100 POST /users (5 req/s por 20s) contra o Cloud Run.
+# Requer Node.js 18+ (usa o npx para rodar o Artillery, sem instalar nada).
+# Como rodar, a partir da raiz do repositório:
+#   npx artillery run asciiart-load-test.yml
+# O teste falha (exit code 1) se não houver exatamente 100 respostas 201
+# ou se p95 > 3000ms / p99 > 5000ms — veja a seção "Checks" no fim do relatório.
+config:
+  target: https://etl-python-197817885477.us-central1.run.app
+  phases:
+    - duration: 20
+      arrivalRate: 5
+      name: "100 POST /users (5 req/s x 20s)"
+  plugins:
+    ensure:
+      thresholds:
+        - http.response_time.p95: 3000
+        - http.response_time.p99: 5000
+      conditions:
+        - expression: "http.codes.201 == 100"
+    metrics-by-endpoint: {}
+scenarios:
+  - name: "Adicionar usuario"
+    flow:
+      - post:
+          url: "/users"
+          json:
+            name: "Load Test User"
+            email: "loadtest-{{$uuid}}@example.com"
