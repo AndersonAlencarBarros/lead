@@ -8,9 +8,11 @@ class StatusEmpresa(str, Enum):
     INATIVA = "inativa"
     SUSPENSA = "suspensa"
 
+
 class TomDaIA(StrEnum):
     INFORMAL = "informal"
     FORMAL = "formal"
+
 
 class HorarioInvalido(ValueError):
     """Horário de início posterior ou igual ao de fim."""
@@ -24,17 +26,18 @@ class Intervalo:
         if self.horario_inicio >= self.horario_fim:
             raise HorarioInvalido("Horário Inválido")
 
-class Cidade(str):
-    ...
 
-class Telefone(str):
-    ...
+class Cidade(str): ...
 
-class RegrasGerais(str):
-    ...
 
-class Estagio(str):
-    ...
+class Telefone(str): ...
+
+
+class RegrasGerais(str): ...
+
+
+class Estagio(str): ...
+
 
 @dataclass
 class ConfiguracaoIA:

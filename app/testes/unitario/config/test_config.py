@@ -18,7 +18,9 @@ def test_settings_use_the_async_postgres_dialect(database_url):
 
 
 def test_settings_keep_the_query_string():
-    settings = Settings(DATABASE_URL="postgres://user:pass@host/infraestrutura?sslmode=require")
+    settings = Settings(
+        DATABASE_URL="postgres://user:pass@host/infraestrutura?sslmode=require"
+    )
     assert settings.database_url.endswith("?sslmode=require")
 
 

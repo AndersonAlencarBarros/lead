@@ -37,7 +37,8 @@ class UnidadeDeTrabalho[TDominio, TLeitura]:
 
     def __init__(
         self,
-        dominio: ParRepositorio[TDominio, TLeitura] | tuple[type[TDominio], type[TLeitura]],
+        dominio: ParRepositorio[TDominio, TLeitura]
+        | tuple[type[TDominio], type[TLeitura]],
     ) -> None:
         self._repo_dominio_cls: type[TDominio] = dominio[0]
         self._repo_leitura_cls: type[TLeitura] = dominio[1]

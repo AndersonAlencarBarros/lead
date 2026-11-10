@@ -1,9 +1,9 @@
-
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from dominio.agregados.conversa import Conversa
+from dominio.objetos_de_valor.conversa import Mensagem
 from infraestrutura.orm.orm_conversa import conversas_tabela  # noqa: F401
 
 
@@ -28,16 +28,21 @@ class ConversaLeituraRepositorio:
         self.session = session
 
     async def buscar_por_empresa_e_telefone(
-        self, empresa_id: str, telefone: str
+        self, tenant_id: str, telefone: str
     ) -> Conversa | None:
         """Busca conversa por empresa e telefone, carregando as mensagens associadas."""
         stmt = (
             select(Conversa)
-            .where(
-                (Conversa.empresa_id == empresa_id)
-                & (Conversa.telefone == telefone)
-            )
+            .where((Conversa.tenant_id == tenant_id) & (Conversa.telefone == telefone))
             .options(selectinload(Conversa.mensagens))
         )
         resultado = await self.session.execute(stmt)
         return resultado.scalar_one_or_none()
+
+    async def mensagem_existe(self, identificador: str) -> bool:
+        """Verifica se uma mensagem já foi persistida pelo identificador externo."""
+        stmt = select(
+            exists().where(Mensagem.identificador_da_mensagem == identificador)
+        )
+        resultado = await self.session.execute(stmt)
+        return resultado.scalar_one()

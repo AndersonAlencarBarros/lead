@@ -43,16 +43,8 @@ async def reset_banco(database_url):
         if engine.dialect.name == "sqlite":
             await conn.execute(text("DELETE FROM mensagens"))
             await conn.execute(text("DELETE FROM conversas"))
-            await conn.execute(
-                text("DELETE FROM sqlite_sequence WHERE name IN ('conversas', 'mensagens')")
-            )
         else:
-            await conn.execute(
-                text(
-                    "TRUNCATE TABLE mensagens, conversas "
-                    "RESTART IDENTITY CASCADE"
-                )
-            )
+            await conn.execute(text("TRUNCATE TABLE mensagens, conversas CASCADE"))
     await Session.dispose()
     yield
     await Session.dispose()

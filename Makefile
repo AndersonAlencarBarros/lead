@@ -1,4 +1,4 @@
-.PHONY: help setup install run dev run-prod migrate upgrade downgrade current history migration mkmigration test test-quick ruff build clean docker-build docker-run docker-run-bg docker-stop
+.PHONY: help setup install run dev run-prod migrate upgrade downgrade current history migration mkmigration test test-quick ruff ruff-format format-check migration-check build clean docker-build docker-run docker-run-bg docker-stop
 
 IMAGE_NAME ?= etl-python
 TAG ?= local
@@ -39,6 +39,15 @@ test-quick: ## Executa testes rapidamente
 
 ruff: ## Verifica código com Ruff
 	cd app && poetry run ruff check .
+
+ruff-format: ## Formata código com Ruff
+	cd app && poetry run ruff format .
+
+format-check: ## Verifica formatação sem alterar arquivos
+	cd app && poetry run ruff format --check .
+
+migration-check: ## Verifica divergência entre ORM e migrações
+	cd app && poetry run alembic -c src/infraestrutura/alembic/alembic.ini check
 
 build: ## Cria pacote com Poetry
 	cd app && poetry build

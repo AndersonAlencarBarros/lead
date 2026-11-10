@@ -1,14 +1,15 @@
-from dataclasses import dataclass
 from datetime import datetime
+from uuid import UUID
 
-from dominio.objetos_de_valor.agendamento import StatusDoAgendamento
+from dominio.agregados import Agregado
+from dominio.objetos_de_valor.agendamento import StatusDoAgendamento, Telefone
 
 
-@dataclass
-class Agendamento:
-    id: str
-    empresa_id: str
-    lead_id: str
+class Agendamento(Agregado):
+    id: UUID
+    empresa_id: UUID
+    lead_id: UUID
+    telefone: Telefone
     horario_agendado: datetime
     status: StatusDoAgendamento
     criado_em: datetime

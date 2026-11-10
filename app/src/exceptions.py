@@ -19,14 +19,6 @@ class RespostaDoUsuario(HTTPException):
         )
 
 
-class EmailJaCadastrado(RespostaDoUsuario):
-    """Disparada quando o e-mail informado já existe na base de dados."""
-
-    status_code = status.HTTP_409_CONFLICT
-    detail = "Email já cadastrado"
-
 class ConversaNaoEncontrada(RespostaDoUsuario):
-
     status_code = status.HTTP_404_NOT_FOUND
     detail = "Conversa não encontrada"
-

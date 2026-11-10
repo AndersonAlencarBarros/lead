@@ -1,13 +1,13 @@
-from dataclasses import dataclass
 from datetime import datetime
+from uuid import UUID
 
+from dominio.agregados import Agregado
 from dominio.objetos_de_valor.lead import Cidade, EstagioDoLead, Nome, Telefone
 
 
-@dataclass
-class Lead:
-    id: str
-    empresa_id: str
+class Lead(Agregado):
+    id: UUID
+    empresa_id: UUID
     nome: Nome | None
     telefone: Telefone | None
     cidade: Cidade | None

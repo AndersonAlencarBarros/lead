@@ -1,4 +1,3 @@
-
 from dominio.agregados.conversa import Conversa
 from infraestrutura.unidade_de_trabalho import UnidadeDeTrabalho
 from repositorio.conversa import ConversaLeituraRepositorio

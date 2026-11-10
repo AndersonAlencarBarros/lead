@@ -1,13 +1,11 @@
-from dataclasses import dataclass
+from uuid import UUID
+
+from dominio.agregados import Agregado
 
 
-@dataclass
-class Auditoria:
-    id: str
+class Auditoria(Agregado):
+    id: UUID
     acao: str
-    empresa: str
+    empresa_id: UUID
     endereco_ip: str
     telefone: str
-
-
-
