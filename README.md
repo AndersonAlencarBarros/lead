@@ -1,1 +1,1 @@
-# Motor de IA para leads em canais como WhatsApp ou Telegram
+# Motor de IA para leads 
