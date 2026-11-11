@@ -78,3 +78,12 @@ class Empresa(Agregado):
 
     def estagio_permitido(self, estagio: str) -> bool:
         return estagio in self.estagios
+
+    def esta_ativa(self) -> bool:
+        return self.status is StatusEmpresa.ATIVA
+
+    def esta_em_horario_de_atendimento(self, agora: datetime) -> bool:
+        return self.configuracao_ia.horario_atendimento_ia.contem(agora)
+
+    def pode_atender(self, agora: datetime) -> bool:
+        return self.esta_ativa() and self.esta_em_horario_de_atendimento(agora)

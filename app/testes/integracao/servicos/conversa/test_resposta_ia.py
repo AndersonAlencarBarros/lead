@@ -1,6 +1,8 @@
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 
+import pytest
+
 from dominio.agregados.conversa import Conversa
 from dominio.agregados.empresa import Empresa
 from dominio.objetos_de_valor.conversa import Mensagem
@@ -29,19 +31,26 @@ class ProviderFalso(ProvedorLLM):
         return self.texto
 
 
-def _empresa() -> Empresa:
+def _empresa(
+    status: StatusEmpresa = StatusEmpresa.ATIVA,
+    inicio: datetime | None = None,
+    fim: datetime | None = None,
+) -> Empresa:
+    agora = datetime.now()
     return Empresa(
         tenant_id="empresa-1",
         nome="Empresa 1",
-        status=StatusEmpresa.ATIVA,
+        status=status,
         telefone_notificacao="11999999999",
         configuracao_ia=ConfiguracaoIA(
             tom=TomDaIA.INFORMAL,
             pode_dizer_que_e_ia=True,
             nome_assistente="Ana",
             horario_atendimento_ia=Intervalo(
-                horario_inicio=datetime(2026, 1, 1, 8, 0),
-                horario_fim=datetime(2026, 1, 1, 18, 0),
+                horario_inicio=inicio
+                or agora.replace(hour=0, minute=0, second=0, microsecond=0),
+                horario_fim=fim
+                or agora.replace(hour=23, minute=59, second=59, microsecond=999999),
             ),
         ),
         regras_gerais=[],
@@ -50,9 +59,20 @@ def _empresa() -> Empresa:
     )
 
 
-async def _criar_empresa() -> Empresa:
+def _janela_fora_do_horario() -> tuple[datetime, datetime]:
+    inicio = datetime.now().replace(minute=0, second=0, microsecond=0) + timedelta(
+        hours=12
+    )
+    return inicio, inicio + timedelta(hours=1)
+
+
+async def _criar_empresa(
+    status: StatusEmpresa = StatusEmpresa.ATIVA,
+    inicio: datetime | None = None,
+    fim: datetime | None = None,
+) -> Empresa:
     async with UnidadeDeTrabalho(Dominio.EMPRESA) as uow:
-        empresa = await uow.dominio.salvar(_empresa())
+        empresa = await uow.dominio.salvar(_empresa(status, inicio, fim))
         await uow.commit()
     return empresa
 
@@ -78,8 +98,23 @@ def _mensagem(
     return Mensagem(
         identificador_da_mensagem=identificador,
         texto=texto,
-        foi_enviada_pela_ia=False,
-        foi_enviada_pelo_humano=False,
+        foi_gerada_pela_ia=False,
+        foi_respondida_pelo_usuario=True,
+        criado_em=horario,
+    )
+
+
+def _mensagem_humana(
+    identificador: str,
+    texto: str,
+    horario: datetime,
+) -> Mensagem:
+    return Mensagem(
+        identificador_da_mensagem=identificador,
+        texto=texto,
+        foi_gerada_pela_ia=False,
+        foi_respondida_pelo_usuario=False,
+        foi_intervencao_humana=True,
         criado_em=horario,
     )
 
@@ -109,8 +144,8 @@ async def test_responder_persiste_resposta_da_ia():
     assert conversa.mensagens[0].identificador_da_mensagem == "msg-1"
     resposta = conversa.mensagens[-1]
     assert resposta.texto == "resposta da IA"
-    assert resposta.foi_enviada_pela_ia is True
-    assert resposta.foi_enviada_pelo_humano is False
+    assert resposta.foi_gerada_pela_ia is True
+    assert resposta.foi_respondida_pelo_usuario is False
     assert resposta.identificador_da_mensagem.startswith("ia:")
     assert len(provider.chamadas) == 1
 
@@ -132,10 +167,10 @@ async def test_responder_nao_duplica_resposta():
     conversa = await _buscar_conversa()
     assert conversa is not None
     assert len(conversa.mensagens) == 2
-    assert len(provider.chamadas) == 2
+    assert len(provider.chamadas) == 1
 
 
-async def test_responder_responde_mesmo_sem_ser_a_ultima_mensagem():
+async def test_responder_ignora_gatilho_antigo():
     await _criar_empresa()
     agora = datetime.now()
     await _criar_conversa(
@@ -150,14 +185,14 @@ async def test_responder_responde_mesmo_sem_ser_a_ultima_mensagem():
         "empresa-1", "11988887777", "msg-1", ServicoIA(provider)
     )
 
-    assert gerou is True
+    assert gerou is False
+    assert provider.chamadas == []
     conversa = await _buscar_conversa()
     assert conversa is not None
-    assert len(conversa.mensagens) == 3
-    assert len(provider.chamadas) == 1
+    assert len(conversa.mensagens) == 2
 
 
-async def test_responder_ignora_mensagem_fora_da_janela_de_resposta():
+async def test_responder_processa_gatilho_antigo():
     await _criar_empresa()
     await _criar_conversa(
         [_mensagem("msg-1", "oi", datetime.now() - timedelta(seconds=60))]
@@ -168,11 +203,11 @@ async def test_responder_ignora_mensagem_fora_da_janela_de_resposta():
         "empresa-1", "11988887777", "msg-1", ServicoIA(provider)
     )
 
-    assert gerou is False
-    assert provider.chamadas == []
+    assert gerou is True
+    assert len(provider.chamadas) == 1
 
 
-async def test_responder_envia_apenas_mensagens_da_janela_para_ia():
+async def test_responder_envia_mensagens_pendentes_para_ia():
     await _criar_empresa()
     agora = datetime.now()
     await _criar_conversa(
@@ -189,7 +224,79 @@ async def test_responder_envia_apenas_mensagens_da_janela_para_ia():
 
     assert gerou is True
     assert len(provider.chamadas) == 1
-    assert [mensagem.conteudo for mensagem in provider.chamadas[0][1:]] == ["recente"]
+    assert [mensagem.conteudo for mensagem in provider.chamadas[0][1:]] == [
+        "antiga",
+        "recente",
+    ]
+
+
+async def test_responder_rajada_usa_ultima_mensagem_como_gatilho():
+    await _criar_empresa()
+    agora = datetime.now()
+    await _criar_conversa(
+        [
+            _mensagem("msg-1", "oi", agora - timedelta(seconds=3)),
+            _mensagem(
+                "msg-2",
+                "quero energia solar",
+                agora - timedelta(seconds=2),
+            ),
+            _mensagem(
+                "msg-3",
+                "me manda um orçamento",
+                agora - timedelta(seconds=1),
+            ),
+        ]
+    )
+    provider = ProviderFalso()
+
+    gerou = await responder_conversa(
+        "empresa-1", "11988887777", "msg-3", ServicoIA(provider)
+    )
+
+    assert gerou is True
+    assert len(provider.chamadas) == 1
+    assert [mensagem.conteudo for mensagem in provider.chamadas[0][1:]] == [
+        "oi",
+        "quero energia solar",
+        "me manda um orçamento",
+    ]
+
+
+async def test_responder_inclui_intervencoes_humanas_fora_da_janela():
+    await _criar_empresa()
+    agora = datetime.now()
+    await _criar_conversa(
+        [
+            _mensagem(
+                "msg-lead",
+                "mensagem do lead",
+                agora - timedelta(seconds=120),
+            ),
+            _mensagem_humana(
+                "msg-humano",
+                "resposta humana",
+                agora - timedelta(seconds=90),
+            ),
+        ]
+    )
+    provider = ProviderFalso()
+
+    gerou = await responder_conversa(
+        "empresa-1",
+        "11988887777",
+        "msg-lead",
+        ServicoIA(provider),
+    )
+
+    assert gerou is True
+    assert len(provider.chamadas) == 1
+    contexto = provider.chamadas[0][1:]
+    assert [mensagem.conteudo for mensagem in contexto] == [
+        "mensagem do lead",
+        "resposta humana",
+    ]
+    assert [mensagem.papel for mensagem in contexto] == ["user", "assistant"]
 
 
 async def test_responder_sem_empresa_nao_gera_resposta():
@@ -205,3 +312,59 @@ async def test_responder_sem_empresa_nao_gera_resposta():
     assert conversa is not None
     assert len(conversa.mensagens) == 1
     assert provider.chamadas == []
+
+
+async def test_responder_fora_do_horario_persiste_mensagem():
+    inicio, fim = _janela_fora_do_horario()
+    empresa = await _criar_empresa(inicio=inicio, fim=fim)
+    await _criar_conversa([_mensagem("msg-1", "oi", datetime.now())])
+    provider = ProviderFalso()
+
+    gerou = await responder_conversa(
+        "empresa-1", "11988887777", "msg-1", ServicoIA(provider)
+    )
+
+    assert gerou is True
+    assert provider.chamadas == []
+    conversa = await _buscar_conversa()
+    assert conversa is not None
+    resposta = conversa.mensagens[-1]
+    assert resposta.foi_gerada_pela_ia is True
+    assert "fora desse horário" in resposta.texto
+    assert empresa.configuracao_ia.horario_atendimento_ia.formatar() in resposta.texto
+
+
+async def test_responder_fora_do_horario_nao_duplica():
+    inicio, fim = _janela_fora_do_horario()
+    await _criar_empresa(inicio=inicio, fim=fim)
+    await _criar_conversa([_mensagem("msg-1", "oi", datetime.now())])
+
+    primeira = await responder_conversa(
+        "empresa-1", "11988887777", "msg-1", ServicoIA(ProviderFalso())
+    )
+    segunda = await responder_conversa(
+        "empresa-1", "11988887777", "msg-1", ServicoIA(ProviderFalso())
+    )
+
+    assert primeira is True
+    assert segunda is False
+    conversa = await _buscar_conversa()
+    assert conversa is not None
+    assert len(conversa.mensagens) == 2
+
+
+@pytest.mark.parametrize("status", [StatusEmpresa.INATIVA, StatusEmpresa.SUSPENSA])
+async def test_responder_empresa_inativa_nao_responde(status):
+    await _criar_empresa(status=status)
+    await _criar_conversa([_mensagem("msg-1", "oi", datetime.now())])
+    provider = ProviderFalso()
+
+    gerou = await responder_conversa(
+        "empresa-1", "11988887777", "msg-1", ServicoIA(provider)
+    )
+
+    assert gerou is False
+    assert provider.chamadas == []
+    conversa = await _buscar_conversa()
+    assert conversa is not None
+    assert len(conversa.mensagens) == 1

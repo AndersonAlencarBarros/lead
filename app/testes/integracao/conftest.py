@@ -36,14 +36,19 @@ async def db_session(database_url):
 
 @pytest.fixture(autouse=True)
 def enfileiramentos(monkeypatch):
-    from api import conversa as api_conversa
+    from dominio.regras_de_negocio.servico_ia import responder_conversa
 
     chamadas: list[tuple[str, str, str]] = []
 
-    def _enfileirar(tenant_id: str, telefone: str, mensagem_id: str) -> None:
+    def _enfileirar(
+        tenant_id: str,
+        telefone: str,
+        mensagem_id: str,
+        atraso: float = 0,
+    ) -> None:
         chamadas.append((tenant_id, telefone, mensagem_id))
 
-    monkeypatch.setattr(api_conversa, "criar_resposta_da_ia", _enfileirar)
+    monkeypatch.setattr(responder_conversa, "criar_resposta_da_ia", _enfileirar)
     return chamadas
 
 

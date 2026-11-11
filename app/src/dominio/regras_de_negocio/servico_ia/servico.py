@@ -91,8 +91,12 @@ class ServicoIA:
         return "\n".join(linhas)
 
     def _mensagem_de_contexto(self, mensagem: Mensagem) -> MensagemLLM:
-        foi_enviada = mensagem.foi_enviada_pela_ia or mensagem.foi_enviada_pelo_humano
+        papel = (
+            "assistant"
+            if mensagem.foi_gerada_pela_ia or mensagem.foi_intervencao_humana
+            else "user"
+        )
         return MensagemLLM(
-            papel="assistant" if foi_enviada else "user",
+            papel=papel,
             conteudo=mensagem.texto,
         )

@@ -55,8 +55,9 @@ mensagens_tabela = Table(
         nullable=False,
     ),
     Column("texto", Text, nullable=False),
-    Column("foi_enviada_pela_ia", Boolean, nullable=False, default=False),
-    Column("foi_enviada_pelo_humano", Boolean, nullable=False, default=False),
+    Column("foi_gerada_pela_ia", Boolean, nullable=False, default=False),
+    Column("foi_respondida_pelo_usuario", Boolean, nullable=False, default=False),
+    Column("foi_intervencao_humana", Boolean, nullable=False, default=False),
     Column("criado_em", DateTime, nullable=False, default=datetime.now),
 )
 

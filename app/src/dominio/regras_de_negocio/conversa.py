@@ -1,5 +1,5 @@
 from collections.abc import Awaitable, Callable
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import wraps
 from uuid import NAMESPACE_URL, uuid5
 
@@ -10,6 +10,12 @@ from dominio.objetos_de_valor.conversa import Mensagem, ResultadoMensagem
 from infraestrutura import UnidadeDeTrabalho
 from repositorio.conversa import ConversaDominioRepositorio
 from servicos.serializadores.conversacao import MensagemSerializador
+
+MENSAGEM_FORA_DO_HORARIO = (
+    "Olá! Nosso atendimento automático funciona {horario}. "
+    "No momento estamos fora desse horário. Deixe sua mensagem que "
+    "responderemos quando o atendimento abrir."
+)
 
 
 def idempotente_em_conflito(
@@ -37,18 +43,38 @@ def idempotente_em_conflito(
     return wrapper
 
 
-def _mensagens_na_janela_de_resposta(
+def contexto_para_resposta_da_ia(
     conversa: Conversa,
-    janela_de_resposta_em_segundos: float,
-    agora: datetime,
-) -> list[Mensagem]:
-    """Mensagens dentro da janela de resposta da empresa."""
-    limite = agora - timedelta(seconds=janela_de_resposta_em_segundos)
-    return [mensagem for mensagem in conversa.mensagens if mensagem.criado_em >= limite]
+) -> list[Mensagem] | None:
+    """Tudo que o lead falou desde a última resposta da IA."""
+    if not conversa.ia_pode_responder():
+        return None
+
+    return conversa.mensagens_pendentes() or None
 
 
-def _pode_responder(conversa: Conversa) -> bool:
-    return conversa.ia_pode_responder()
+def ultima_resposta_da_ia(conversa: Conversa) -> Mensagem | None:
+    """Última mensagem gerada pela IA na conversa."""
+    return max(
+        (mensagem for mensagem in conversa.mensagens if mensagem.foi_gerada_pela_ia),
+        key=lambda mensagem: mensagem.criado_em,
+        default=None,
+    )
+
+
+def ultima_mensagem_de_intervencao_humana(
+    conversa: Conversa,
+) -> Mensagem | None:
+    """Última mensagem enviada por humano da empresa na conversa."""
+    return max(
+        (
+            mensagem
+            for mensagem in conversa.mensagens
+            if mensagem.foi_intervencao_humana
+        ),
+        key=lambda mensagem: mensagem.criado_em,
+        default=None,
+    )
 
 
 def _identificador_resposta(conversa: Conversa, mensagem_id: str) -> str:
@@ -68,8 +94,9 @@ async def _salvar_resposta_ia(
         Mensagem(
             identificador_da_mensagem=_identificador_resposta(conversa, mensagem_id),
             texto=texto,
-            foi_enviada_pela_ia=True,
-            foi_enviada_pelo_humano=False,
+            foi_gerada_pela_ia=True,
+            foi_respondida_pelo_usuario=False,
+            foi_intervencao_humana=False,
             criado_em=datetime.now(),
         )
     )
@@ -81,3 +108,19 @@ async def _salvar_resposta_ia(
         return False
 
     return True
+
+
+def _ultima_mensagem_do_usuario_sem_resposta(
+    conversa: Conversa,
+) -> Mensagem | None:
+    """Última mensagem do lead posterior à última resposta da IA."""
+    ultima_ia = ultima_resposta_da_ia(conversa)
+    limite = ultima_ia.criado_em if ultima_ia is not None else None
+
+    candidatas = [
+        mensagem
+        for mensagem in conversa.mensagens
+        if mensagem.foi_respondida_pelo_usuario
+        and (limite is None or mensagem.criado_em > limite)
+    ]
+    return max(candidatas, key=lambda mensagem: mensagem.criado_em, default=None)

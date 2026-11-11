@@ -68,7 +68,8 @@ make worker
 ```
 
 O webhook persiste a mensagem e enfileira a resposta. O worker gera e grava a
-resposta da IA; a consulta `GET /conversas/...` apenas lê o estado atual.
+resposta da IA; a consulta `GET /conversas/...` retorna a última mensagem
+gerada pela IA.
 Ajuste `LLM_MODEL`, `LLM_API_BASE`, `LLM_API_KEY` e `CELERY_BROKER_URL` no
 `.env` conforme o ambiente.
 
@@ -130,8 +131,40 @@ O webhook grava a mensagem e enfileira `responder_conversa_task`. O worker só
 responde quando a empresa do tenant existe, a conversa permite resposta
 automática e a última mensagem é a recém-recebida. Falhas da LLM são
 reprocessadas até 3 vezes. A resposta é gravada em `mensagens` com
-`foi_enviada_pela_ia=true` e um identificador determinístico, evitando
+`foi_gerada_pela_ia=true` e um identificador determinístico, evitando
 duplicatas.
+
+A IA só responde quando a empresa está `ativa` e o horário atual está dentro de
+`horario_atendimento_ia`. Fora do horário, a task grava uma mensagem automática
+informando o horário configurado, sem chamar a LLM. Empresas `inativa` ou
+`suspensa` não respondem.
+
+A resposta é agendada com `countdown` igual a `janela_de_resposta`. Quando a task
+roda, só a última mensagem do lead responde, considerando todas as mensagens
+pendentes desde a última resposta da IA mais o histórico de intervenção humana.
+
+As mensagens usam três flags de origem:
+
+- `foi_gerada_pela_ia`: mensagem gerada pela IA.
+- `foi_respondida_pelo_usuario`: mensagem enviada pelo lead/usuário.
+- `foi_intervencao_humana`: mensagem enviada por humano da empresa.
+
+## Intervenção humana
+
+Mensagens do webhook com `"autor": "humano"` são gravadas como intervenção
+humana e assumem a conversa automaticamente. Sem `autor`, a mensagem é tratada
+como do lead/usuário.
+
+`POST /intervencao` com `acao=assumir` marca a conversa como assumida e a IA
+para de responder. `acao=religar` devolve o atendimento para a IA e enfileira
+uma resposta para a última mensagem do lead ainda sem resposta. A IA recebe no
+contexto a janela atual de mensagens mais todo o histórico de intervenção
+humana. Durante a intervenção, as mensagens continuam sendo gravadas, mas não
+são enfileiradas para a IA.
+
+`GET /conversas/{tenant_id}/{telefone}` retorna a última mensagem da intervenção
+humana enquanto a conversa estiver assumida. Sem intervenção, retorna a última
+mensagem gerada pela IA.
 
 ## Endpoints
 
@@ -139,7 +172,8 @@ duplicatas.
 | ------ | ---- | --------- |
 | POST | `/empresas` | Cria empresa; `201` ou `409` se o tenant já existir |
 | POST | `/webhook/mensagem` | Recebe mensagem: `201` para nova, `204` para duplicada; `503` se a fila estiver indisponível |
-| GET | `/conversas/{tenant_id}/{telefone}` | Retorna conversa e mensagens; `404` se não existir |
+| POST | `/intervencao` | `assumir` ativa a intervenção humana; `religar` devolve o atendimento para a IA |
+| GET | `/conversas/{tenant_id}/{telefone}` | Retorna a última mensagem da IA ou da intervenção humana; `404` se não existir |
 
 A documentação interativa fica em `/docs` e `/redoc`, e o schema em
 `/openapi.json`.

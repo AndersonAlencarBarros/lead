@@ -24,6 +24,47 @@ class ConfiguracaoIASerializador(BaseModel):
     horario_atendimento_ia: IntervaloSerializador
 
 
+EXEMPLO_EMPRESA_SOL_NASCENTE = {
+    "tenant_id": "sol-nascente",
+    "nome": "Sol Nascente Energia Solar",
+    "status": "ativa",
+    "telefone_notificacao": "5581988887777",
+    "janela_de_resposta": 8,
+    "configuracao_ia": {
+        "tom": "informal",
+        "pode_dizer_que_e_ia": True,
+        "nome_assistente": "Luz",
+        "horario_atendimento_ia": {
+            "horario_inicio": "2026-01-01T00:00:00",
+            "horario_fim": "2026-01-01T23:59:59",
+        },
+    },
+    "regras_gerais": [
+        "Nunca prometer valor exato de economia; dizer que depende da visita técnica.",
+        "Nunca informar preço final; dizer que o consultor apresenta o orçamento.",
+        "Não pedir nem repetir senhas ou dados bancários.",
+        (
+            "Se o lead disser que já é cliente, marcar 'cliente-antigo' "
+            "e transferir para humano."
+        ),
+    ],
+    "cidades_atendidas": [
+        "Recife",
+        "Olinda",
+        "Jaboatão dos Guararapes",
+        "Caruaru",
+    ],
+    "estagios": [
+        "Novo",
+        "Qualificacao",
+        "Qualificado",
+        "Desqualificado",
+        "Agendado",
+        "Humano",
+    ],
+}
+
+
 class EmpresaCriacaoSerializador(BaseModel):
     tenant_id: str = Field(min_length=1)
     nome: str = Field(min_length=1)
@@ -34,6 +75,10 @@ class EmpresaCriacaoSerializador(BaseModel):
     regras_gerais: list[str] = Field(default_factory=list)
     cidades_atendidas: list[str] = Field(default_factory=list)
     estagios: list[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [EXEMPLO_EMPRESA_SOL_NASCENTE]}
+    )
 
 
 class EmpresaResposta(BaseModel):

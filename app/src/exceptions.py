@@ -44,6 +44,16 @@ class ConversaNaoEncontrada(RespostaDoUsuario):
     detail = "Conversa não encontrada"
 
 
+class RespostaDaIANaoEncontrada(RespostaDoUsuario):
+    status_code = status.HTTP_404_NOT_FOUND
+    detail = "Resposta da IA não encontrada"
+
+
+class IntervencaoHumanaNaoEncontrada(RespostaDoUsuario):
+    status_code = status.HTTP_404_NOT_FOUND
+    detail = "Mensagem de intervenção humana não encontrada"
+
+
 class FalhaAoConsultarIA(RespostaDoUsuario):
     status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     detail = "Serviço de IA indisponível"

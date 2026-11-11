@@ -12,7 +12,7 @@ class Conversa(Agregado):
     telefone: Telefone
     criado_em: datetime
     mensagens: list[Mensagem]
-    teve_intervencao_humana: bool = False
+    teve_intervencao_humana: bool
 
     def __init__(
         self,
@@ -29,6 +29,7 @@ class Conversa(Agregado):
         self.telefone = Telefone(telefone)
         self.criado_em = criado_em or datetime.now()
         self.mensagens = mensagens or []
+        self.teve_intervencao_humana = False
 
     def receber_mensagem(self, mensagem: Mensagem) -> None:
         self.mensagens.append(mensagem)
@@ -41,3 +42,34 @@ class Conversa(Agregado):
 
     def ia_pode_responder(self) -> bool:
         return not self.teve_intervencao_humana
+
+    def ultima_mensagem_do_lead(self) -> Mensagem | None:
+        return max(
+            (
+                mensagem
+                for mensagem in self.mensagens
+                if mensagem.foi_respondida_pelo_usuario
+            ),
+            key=lambda mensagem: mensagem.criado_em,
+            default=None,
+        )
+
+    def mensagens_pendentes(self) -> list[Mensagem]:
+        """Tudo desde a última resposta da IA, mais o histórico humano."""
+        ultima_ia = max(
+            (mensagem for mensagem in self.mensagens if mensagem.foi_gerada_pela_ia),
+            key=lambda mensagem: mensagem.criado_em,
+            default=None,
+        )
+        limite = ultima_ia.criado_em if ultima_ia is not None else None
+
+        return sorted(
+            (
+                mensagem
+                for mensagem in self.mensagens
+                if mensagem.foi_intervencao_humana
+                or limite is None
+                or mensagem.criado_em > limite
+            ),
+            key=lambda mensagem: mensagem.criado_em,
+        )

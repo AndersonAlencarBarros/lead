@@ -11,8 +11,16 @@ ESPERA_BASE_ENTRE_TENTATIVAS_SEGUNDOS = 15
 ESPERA_MAXIMA_ENTRE_TENTATIVAS_SEGUNDOS = 60
 
 
-def criar_resposta_da_ia(tenant_id: str, telefone: str, mensagem_id: str) -> None:
-    responder_conversa_task.delay(tenant_id, telefone, mensagem_id)
+def criar_resposta_da_ia(
+    tenant_id: str,
+    telefone: str,
+    mensagem_id: str,
+    atraso: float = 0,
+) -> None:
+    responder_conversa_task.apply_async(
+        args=(tenant_id, telefone, mensagem_id),
+        countdown=atraso,
+    )
 
 
 async def _responder(

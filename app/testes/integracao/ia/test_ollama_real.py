@@ -48,6 +48,7 @@ def _provider() -> ProvedorLiteLLM:
 
 
 def _empresa() -> Empresa:
+    agora = datetime.now()
     return Empresa(
         tenant_id="empresa-1",
         nome="Empresa 1",
@@ -58,8 +59,10 @@ def _empresa() -> Empresa:
             pode_dizer_que_e_ia=True,
             nome_assistente="Ana",
             horario_atendimento_ia=Intervalo(
-                horario_inicio=datetime(2026, 1, 1, 8, 0),
-                horario_fim=datetime(2026, 1, 1, 18, 0),
+                horario_inicio=agora.replace(hour=0, minute=0, second=0, microsecond=0),
+                horario_fim=agora.replace(
+                    hour=23, minute=59, second=59, microsecond=999999
+                ),
             ),
         ),
         regras_gerais=["Seja breve"],
@@ -76,8 +79,8 @@ def _conversa() -> Conversa:
             Mensagem(
                 identificador_da_mensagem="msg-1",
                 texto="Olá, vocês atendem em São Paulo?",
-                foi_enviada_pela_ia=False,
-                foi_enviada_pelo_humano=False,
+                foi_gerada_pela_ia=False,
+                foi_respondida_pelo_usuario=True,
                 criado_em=datetime.now(),
             )
         ],
@@ -140,12 +143,12 @@ async def test_responder_conversa_persiste_resposta_com_ollama_real():
     conversa = await _buscar_conversa()
     assert conversa is not None
     respostas = [
-        mensagem for mensagem in conversa.mensagens if mensagem.foi_enviada_pela_ia
+        mensagem for mensagem in conversa.mensagens if mensagem.foi_gerada_pela_ia
     ]
     assert len(respostas) == 1
     resposta = respostas[0]
     assert resposta.texto.strip()
-    assert resposta.foi_enviada_pelo_humano is False
+    assert resposta.foi_respondida_pelo_usuario is False
     assert resposta.identificador_da_mensagem.startswith("ia:")
 
     gerou_novamente = await responder_conversa(
@@ -160,11 +163,7 @@ async def test_responder_conversa_persiste_resposta_com_ollama_real():
     assert conversa is not None
     assert (
         len(
-            [
-                mensagem
-                for mensagem in conversa.mensagens
-                if mensagem.foi_enviada_pela_ia
-            ]
+            [mensagem for mensagem in conversa.mensagens if mensagem.foi_gerada_pela_ia]
         )
         == 1
     )
