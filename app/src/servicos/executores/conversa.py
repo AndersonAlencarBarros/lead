@@ -11,6 +11,7 @@ from dominio.objetos_de_valor.conversa import (
 from dominio.regras_de_negocio.conversa import (
     MENSAGEM_FORA_DO_HORARIO,
     _salvar_resposta_ia,
+    _ultima_mensagem_do_usuario_sem_resposta,
     contexto_para_resposta_da_ia,
     idempotente_em_conflito,
     ultima_mensagem_de_intervencao_humana,
@@ -97,22 +98,6 @@ async def receber_mensagem(
             raise FilaDeProcessamentoIndisponivel() from exc
 
     return ResultadoMensagem.PROCESSADA
-
-
-def _ultima_mensagem_do_usuario_sem_resposta(
-    conversa: Conversa,
-) -> Mensagem | None:
-    """Última mensagem do lead posterior à última resposta da IA."""
-    ultima_ia = ultima_resposta_da_ia(conversa)
-    limite = ultima_ia.criado_em if ultima_ia is not None else None
-
-    candidatas = [
-        mensagem
-        for mensagem in conversa.mensagens
-        if mensagem.foi_respondida_pelo_usuario
-        and (limite is None or mensagem.criado_em > limite)
-    ]
-    return max(candidatas, key=lambda mensagem: mensagem.criado_em, default=None)
 
 
 async def alterar_intervencao(
