@@ -1,4 +1,4 @@
-.PHONY: help setup install run dev run-prod migrate upgrade downgrade current history migration mkmigration test test-quick ruff ruff-format format-check migration-check build clean docker-build docker-run docker-run-bg docker-stop
+.PHONY: help setup install run dev run-prod migrate upgrade downgrade current history migration mkmigration test test-quick test-ia ruff ruff-format format-check migration-check build clean redis worker docker-build docker-run docker-run-bg docker-stop
 
 IMAGE_NAME ?= etl-python
 TAG ?= local
@@ -14,6 +14,12 @@ run dev: ## Inicia a aplicação local com reload
 
 run-prod: ## Inicia a aplicação em modo "produção" (porta via PORT)
 	cd app && poetry run uvicorn main:app --host 0.0.0.0 --port $${PORT:-8080}
+
+redis: ## Sobe Redis local para o Celery
+	docker run --rm -p 6379:6379 redis:7-alpine
+
+worker: ## Inicia worker Celery para respostas da IA
+	cd app && poetry run celery -A infraestrutura.celery_app:celery_app worker --loglevel=info
 
 migrate upgrade: ## Aplica migrações pendentes (alembic upgrade head)
 	cd app && poetry run alembic -c src/infraestrutura/alembic/alembic.ini upgrade head
@@ -36,6 +42,9 @@ test: ## Executa todos os testes com saída detalhada
 
 test-quick: ## Executa testes rapidamente
 	cd app && poetry run pytest
+
+test-ia: ## Executa testes reais contra Ollama
+	cd app && poetry run pytest testes/integracao/ia -v
 
 ruff: ## Verifica código com Ruff
 	cd app && poetry run ruff check .

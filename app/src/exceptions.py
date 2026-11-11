@@ -42,3 +42,13 @@ class AgendamentoNaoEncontrado(RespostaDoUsuario):
 class ConversaNaoEncontrada(RespostaDoUsuario):
     status_code = status.HTTP_404_NOT_FOUND
     detail = "Conversa não encontrada"
+
+
+class FalhaAoConsultarIA(RespostaDoUsuario):
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    detail = "Serviço de IA indisponível"
+
+
+class FilaDeProcessamentoIndisponivel(RespostaDoUsuario):
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    detail = "Fila de processamento indisponível"

@@ -13,6 +13,34 @@ class Settings(BaseSettings):
     db_pool_pre_ping: bool = True
     db_echo: bool = False
 
+    llm_model: str = Field(
+        default="ollama/qwen2.5:7b",
+        validation_alias="LLM_MODEL",
+    )
+    llm_api_base: str | None = Field(
+        default="http://localhost:11434",
+        validation_alias="LLM_API_BASE",
+    )
+    llm_api_key: str | None = Field(
+        default=None,
+        validation_alias="LLM_API_KEY",
+    )
+    llm_temperature: float = Field(
+        default=0.7,
+        ge=0,
+        le=2,
+        validation_alias="LLM_TEMPERATURE",
+    )
+    llm_timeout_seconds: float = Field(
+        default=60.0,
+        gt=0,
+        validation_alias="LLM_TIMEOUT_SECONDS",
+    )
+    celery_broker_url: str = Field(
+        default="redis://localhost:6379/0",
+        validation_alias="CELERY_BROKER_URL",
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

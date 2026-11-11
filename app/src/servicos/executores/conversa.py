@@ -1,12 +1,16 @@
-from collections.abc import Awaitable, Callable
 from datetime import datetime
-from functools import wraps
-
-from sqlalchemy.exc import IntegrityError
 
 from dominio.agregados.conversa import Conversa
+from dominio.agregados.empresa import Empresa
 from dominio.objetos_de_valor.conversa import Mensagem, ResultadoMensagem
-from infraestrutura import UnidadeDeTrabalho
+from dominio.regras_de_negocio.conversa import (
+    _mensagens_na_janela_de_resposta,
+    _pode_responder,
+    _salvar_resposta_ia,
+    idempotente_em_conflito,
+)
+from dominio.regras_de_negocio.servico_ia import ServicoIA
+from infraestrutura import Dominio, UnidadeDeTrabalho
 from repositorio.conversa import ConversaDominioRepositorio, ConversaLeituraRepositorio
 from servicos.serializadores.conversacao import MensagemSerializador
 
@@ -49,31 +53,6 @@ def consultar_agenda(): ...
 def marcar_agenda(): ...
 
 
-def idempotente_em_conflito(
-    fn: Callable[..., Awaitable[ResultadoMensagem]],
-) -> Callable[..., Awaitable[ResultadoMensagem]]:
-    """Repete uma vez em conflito de concorrência e trata duplicidade como sucesso."""
-
-    @wraps(fn)
-    async def wrapper(
-        mensagem: MensagemSerializador,
-        uow: UnidadeDeTrabalho,
-    ) -> ResultadoMensagem:
-        for tentativa in range(2):
-            try:
-                return await fn(mensagem, uow)
-            except IntegrityError:
-                await uow.rollback()
-
-                if await uow.leitura.mensagem_existe(mensagem.message_id):
-                    return ResultadoMensagem.DUPLICADA
-
-                if tentativa == 1:
-                    raise
-
-    return wrapper
-
-
 @idempotente_em_conflito
 async def receber_mensagem(
     mensagem: MensagemSerializador, uow: UnidadeDeTrabalho
@@ -111,3 +90,40 @@ async def receber_mensagem(
 
     await repo_dominio.salvar(conversa)
     return ResultadoMensagem.PROCESSADA
+
+
+async def responder_conversa(
+    tenant_id: str,
+    telefone: str,
+    mensagem_id: str,
+    servico_ia: ServicoIA,
+) -> bool:
+    """Gera e persiste a resposta da IA para a mensagem informada."""
+
+    async with UnidadeDeTrabalho(Dominio.CONVERSA) as uow:
+        empresa: Empresa | None = await uow.dominio.buscar_empresa_por_tenant_id(
+            tenant_id
+        )
+        if empresa is None:
+            return False
+
+        conversa = await uow.dominio.buscar_por_empresa_e_telefone(tenant_id, telefone)
+        if conversa is None:
+            return False
+
+        mensagens_recentes = _mensagens_na_janela_de_resposta(
+            conversa,
+            empresa.janela_de_resposta,
+            datetime.now(),
+        )
+        if not mensagens_recentes or not _pode_responder(conversa):
+            return False
+
+        texto = await servico_ia.responder(mensagens_recentes, empresa)
+
+        return await _salvar_resposta_ia(
+            conversa,
+            mensagem_id,
+            texto,
+            uow,
+        )

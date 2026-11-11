@@ -5,10 +5,11 @@ from dominio.agregados import Agregado
 from dominio.objetos_de_valor.empresa import (
     Cidade,
     ConfiguracaoIA,
+    DadosEmpresa,
     Estagio,
     RegrasGerais,
     StatusEmpresa,
-    Telefone, DadosEmpresa,
+    Telefone,
 )
 
 

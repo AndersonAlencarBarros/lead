@@ -25,11 +25,11 @@ class RegrasGerais(str): ...
 
 class Estagio(str): ...
 
+
 @dataclass
 class Intervalo:
     horario_inicio: datetime
     horario_fim: datetime
-
 
     def __post_init__(self):
         class HorarioInvalido(ValueError):
@@ -53,6 +53,3 @@ class DadosEmpresa:
     regras_gerais: list[RegrasGerais]
     cidades_atendidas: list[Cidade]
     estagios: list[Estagio]
-
-
-

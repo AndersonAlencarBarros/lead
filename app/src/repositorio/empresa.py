@@ -1,15 +1,12 @@
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominio.agregados.empresa import Empresa
 from infraestrutura.orm.orm_empresa import empresas_tabela  # noqa: F401
+from repositorio import Repositorio
 
 
-class EmpresaDominioRepositorio:
+class EmpresaDominioRepositorio(Repositorio):
     """Repositório de domínio (escrita e mutação do agregado Empresa)."""
-
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
 
     async def salvar(self, empresa: Empresa) -> Empresa:
         """Persiste ou atualiza o agregado Empresa."""
@@ -19,11 +16,8 @@ class EmpresaDominioRepositorio:
         return empresa
 
 
-class EmpresaLeituraRepositorio:
+class EmpresaLeituraRepositorio(Repositorio):
     """Repositório de leitura (consultas de Empresa)."""
-
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
 
     async def buscar_por_tenant_id(self, tenant_id: str) -> Empresa | None:
         stmt = select(Empresa).where(Empresa.tenant_id == tenant_id)

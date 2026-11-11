@@ -102,17 +102,18 @@ async def _post_mensagem(payload: dict[str, str]) -> httpx.Response:
         return await client.post("/webhook/mensagem", json=payload)
 
 
-async def test_webhook_cria_conversa_e_mensagem(db_session):
+async def test_webhook_cria_conversa_e_mensagem(db_session, enfileiramentos):
     resposta = await _post_mensagem(_payload("msg-webhook-1"))
 
     assert resposta.status_code == 201
+    assert enfileiramentos == [("empresa-1", "11988887777", "msg-webhook-1")]
 
     conversa = (await db_session.execute(select(Conversa))).scalar_one()
     mensagem = (await db_session.execute(select(Mensagem))).scalar_one()
     assert mensagem.conversa_id == conversa.id
 
 
-async def test_webhook_duplicado_e_idempotente():
+async def test_webhook_duplicado_e_idempotente(enfileiramentos):
     payload = _payload("msg-duplicada")
 
     primeira = await _post_mensagem(payload)
@@ -120,9 +121,28 @@ async def test_webhook_duplicado_e_idempotente():
 
     assert primeira.status_code == 201
     assert segunda.status_code == 204
+    assert enfileiramentos == [
+        ("empresa-1", "11988887777", "msg-duplicada"),
+        ("empresa-1", "11988887777", "msg-duplicada"),
+    ]
 
     dados = (await _get("/conversas/empresa-1/11988887777")).json()
     assert len(dados["mensagens"]) == 1
+
+
+async def test_webhook_com_fila_indisponivel_retorna_503(db_session, monkeypatch):
+    from api import conversa as api_conversa
+
+    def _falhar(*_args):
+        raise RuntimeError("redis fora do ar")
+
+    monkeypatch.setattr(api_conversa, "criar_resposta_da_ia", _falhar)
+
+    resposta = await _post_mensagem(_payload("msg-sem-fila"))
+
+    assert resposta.status_code == 503
+    conversa = (await db_session.execute(select(Conversa))).scalar_one()
+    assert conversa.tenant_id == "empresa-1"
 
 
 async def test_webhook_mesmo_telefone_mensagens_diferentes():

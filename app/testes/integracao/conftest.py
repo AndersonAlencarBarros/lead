@@ -35,6 +35,19 @@ async def db_session(database_url):
 
 
 @pytest.fixture(autouse=True)
+def enfileiramentos(monkeypatch):
+    from api import conversa as api_conversa
+
+    chamadas: list[tuple[str, str, str]] = []
+
+    def _enfileirar(tenant_id: str, telefone: str, mensagem_id: str) -> None:
+        chamadas.append((tenant_id, telefone, mensagem_id))
+
+    monkeypatch.setattr(api_conversa, "criar_resposta_da_ia", _enfileirar)
+    return chamadas
+
+
+@pytest.fixture(autouse=True)
 async def reset_banco(database_url):
     await Session.dispose()
     engine = Session.get_engine()

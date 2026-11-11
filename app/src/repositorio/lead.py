@@ -1,15 +1,12 @@
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominio.agregados.lead import Lead
 from infraestrutura.orm.orm_lead import leads_tabela  # noqa: F401
+from repositorio import Repositorio
 
 
-class LeadDominioRepositorio:
+class LeadDominioRepositorio(Repositorio):
     """Repositório de domínio (escrita e mutação do agregado Lead)."""
-
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
 
     async def salvar(self, lead: Lead) -> Lead:
         """Persiste ou atualiza o agregado Lead."""
@@ -19,11 +16,8 @@ class LeadDominioRepositorio:
         return lead
 
 
-class LeadLeituraRepositorio:
+class LeadLeituraRepositorio(Repositorio):
     """Repositório de leitura (consultas de Lead)."""
-
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
 
     async def buscar_por_id(self, lead_id) -> Lead | None:
         stmt = select(Lead).where(Lead.id == lead_id)

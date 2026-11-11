@@ -12,7 +12,6 @@ from repositorio.lead import LeadDominioRepositorio, LeadLeituraRepositorio
 async def criar_lead(
     empresa_id: UUID,
     uow: UnidadeDeTrabalho,
-
     nome: str | None = None,
     telefone: str | None = None,
     cidade: str | None = None,

@@ -17,7 +17,6 @@ async def criar_agendamento(
     telefone: str,
     horario_agendado: datetime,
     uow: UnidadeDeTrabalho,
-
     status: StatusDoAgendamento = StatusDoAgendamento.CONFIRMADO,
 ) -> Agendamento:
     repo_dominio: AgendamentoDominioRepositorio = uow.dominio

@@ -9,6 +9,8 @@ consultas de conversas e mensagens.
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [SQLAlchemy](https://www.sqlalchemy.org/) 2.x assíncrono + [psycopg](https://www.psycopg.org/psycopg3/) 3 (Postgres)
 - [Alembic](https://alembic.sqlalchemy.org/) para migrations
+- [LiteLLM](https://docs.litellm.ai/) + Ollama local para respostas da IA
+- [Celery](https://docs.celeryq.dev/) + Redis para geração assíncrona
 - [pytest](https://docs.pytest.org/) + TestClient (httpx) + [pytest-asyncio](https://pytest-asyncio.readthedocs.io/) + [testcontainers](https://testcontainers-python.readthedocs.io/)
 
 ## Estrutura
@@ -22,11 +24,14 @@ app/
 │   │   ├── __init__.py               # api_router (agrega os routers)
 │   │   └── conversa.py               # webhook e consulta de conversas
 │   ├── dominio/                      # regras de negócio
+│   │   └── regras_de_negocio/
+│   │       └── servico_ia/           # contexto, provider, serviço e task
 │   ├── servicos/                     # executores, serializadores, visualizadores
 │   ├── repositorio/                  # persistência
 │   └── infraestrutura/               # SQLAlchemy async + migrations
 │       ├── base.py                   # Base declarativa
 │       ├── session.py                # engine e sessions
+│       ├── celery_app.py             # configuração do Celery
 │       └── alembic/                  # alembic.ini, env.py, script.py.mako, versions/
 └── testes/
     ├── unitario/                     # testes sem banco
@@ -51,8 +56,21 @@ app/
 poetry install
 cp .env.example .env    # SQLite local por padrão; ajuste para Postgres se necessário
 poetry run alembic -c src/infraestrutura/alembic/alembic.ini upgrade head
+ollama pull qwen2.5:7b              # modelo padrão do provider local
 poetry run uvicorn main:app --reload
 ```
+
+Em outro terminal, suba o Redis e o worker Celery (a partir da raiz):
+
+```bash
+make redis
+make worker
+```
+
+O webhook persiste a mensagem e enfileira a resposta. O worker gera e grava a
+resposta da IA; a consulta `GET /conversas/...` apenas lê o estado atual.
+Ajuste `LLM_MODEL`, `LLM_API_BASE`, `LLM_API_KEY` e `CELERY_BROKER_URL` no
+`.env` conforme o ambiente.
 
 Testes:
 
@@ -66,6 +84,20 @@ Os testes de banco sobem um Postgres 16 real em container
 ([testcontainers](https://testcontainers-python.readthedocs.io/)), então é preciso
 Docker disponível — não é preciso ter um Postgres instalado na máquina, nem
 configurar `DATABASE_URL`.
+
+### Testes com LLM real
+
+Os testes em `testes/integracao/ia/` chamam o Ollama real em
+`http://localhost:11434`, usando o modelo `qwen2.5-coder:7b`.
+
+```bash
+make test-ia
+# ou
+poetry run pytest testes/integracao/ia -v
+```
+
+Se o servidor estiver indisponível ou o modelo ausente, os testes são
+ignorados. Baixe o modelo com `ollama pull qwen2.5-coder:7b`.
 
 ## Migrations
 
@@ -92,12 +124,21 @@ usa `infraestrutura.base.Base.metadata` como `target_metadata`.
 A revision `0001_baseline` é intencionalmente vazia; as tabelas entram na
 revision seguinte.
 
+## Respostas da IA
+
+O webhook grava a mensagem e enfileira `responder_conversa_task`. O worker só
+responde quando a empresa do tenant existe, a conversa permite resposta
+automática e a última mensagem é a recém-recebida. Falhas da LLM são
+reprocessadas até 3 vezes. A resposta é gravada em `mensagens` com
+`foi_enviada_pela_ia=true` e um identificador determinístico, evitando
+duplicatas.
+
 ## Endpoints
 
 | Método | Rota | Descrição |
 | ------ | ---- | --------- |
 | POST | `/empresas` | Cria empresa; `201` ou `409` se o tenant já existir |
-| POST | `/webhook/mensagem` | Recebe mensagem: `201` para nova, `204` para duplicada |
+| POST | `/webhook/mensagem` | Recebe mensagem: `201` para nova, `204` para duplicada; `503` se a fila estiver indisponível |
 | GET | `/conversas/{tenant_id}/{telefone}` | Retorna conversa e mensagens; `404` se não existir |
 
 A documentação interativa fica em `/docs` e `/redoc`, e o schema em
