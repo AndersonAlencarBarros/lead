@@ -17,6 +17,7 @@ from dominio.regras_de_negocio.conversa import (
     _salvar_resposta_ia,
     _ultima_mensagem_do_usuario_sem_resposta,
     contexto_para_resposta_da_ia,
+    historico_para_resposta_da_ia,
     idempotente_em_conflito,
     ultima_mensagem_de_intervencao_humana,
     ultima_resposta_da_ia,
@@ -214,10 +215,10 @@ async def responder_conversa(
         if conversa is None:
             return False
 
-        ultima_do_lead = conversa.ultima_mensagem_do_lead()
+        mensagem_pendente = _ultima_mensagem_do_usuario_sem_resposta(conversa)
         if (
-            ultima_do_lead is None
-            or ultima_do_lead.identificador_da_mensagem != mensagem_id
+            mensagem_pendente is None
+            or mensagem_pendente.identificador_da_mensagem != mensagem_id
         ):
             return False
 
@@ -236,10 +237,11 @@ async def responder_conversa(
         if lead is None:
             return False
 
-        mensagens_contexto = contexto_para_resposta_da_ia(conversa)
-        if mensagens_contexto is None:
+        mensagens_pendentes = contexto_para_resposta_da_ia(conversa)
+        if mensagens_pendentes is None:
             return False
-        mensagens_contexto = [
+
+        mensagens_pendentes = [
             Mensagem(
                 identificador_da_mensagem=mensagem.identificador_da_mensagem,
                 texto=mensagem.texto,
@@ -249,7 +251,19 @@ async def responder_conversa(
                 simulacao=mensagem.simulacao,
                 criado_em=mensagem.criado_em,
             )
-            for mensagem in mensagens_contexto
+            for mensagem in mensagens_pendentes
+        ]
+        historico = [
+            Mensagem(
+                identificador_da_mensagem=mensagem.identificador_da_mensagem,
+                texto=mensagem.texto,
+                foi_gerada_pela_ia=mensagem.foi_gerada_pela_ia,
+                foi_respondida_pelo_usuario=mensagem.foi_respondida_pelo_usuario,
+                foi_intervencao_humana=mensagem.foi_intervencao_humana,
+                simulacao=mensagem.simulacao,
+                criado_em=mensagem.criado_em,
+            )
+            for mensagem in historico_para_resposta_da_ia(conversa) or []
         ]
 
         turno_repo = TurnoDominioRepositorio(uow.session)
@@ -272,20 +286,19 @@ async def responder_conversa(
 
         conversa_id = conversa.id
         lead_id = lead.id
-        simulacao = ultima_do_lead.simulacao
+        simulacao = mensagem_pendente.simulacao
 
     executor = ExecutorFerramentas(
         empresa=empresa,
         conversa_id=conversa_id,
         lead_id=lead_id,
-        mensagens_pendentes=mensagens_contexto,
         simulacao=simulacao,
         turno=turno,
     )
 
     try:
         resultado = await servico_ia.responder(
-            mensagens_contexto,
+            historico,
             empresa,
             lead=lead,
             executar_ferramenta=executor.executar if usar_ferramentas else None,
@@ -312,10 +325,10 @@ async def responder_conversa(
         if conversa is None or (not conversa.ia_pode_responder() and not transferiu):
             return False
 
-        ultima_do_lead = conversa.ultima_mensagem_do_lead()
+        mensagem_pendente = _ultima_mensagem_do_usuario_sem_resposta(conversa)
         if (
-            ultima_do_lead is None
-            or ultima_do_lead.identificador_da_mensagem != mensagem_id
+            mensagem_pendente is None
+            or mensagem_pendente.identificador_da_mensagem != mensagem_id
         ):
             return False
 

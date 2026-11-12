@@ -13,11 +13,11 @@ from sqlalchemy import (
     Uuid,
 )
 
-from dominio.agregados.acao_executada import AcaoExecutada
+from dominio.agregados.auditoria import Auditoria
 from infraestrutura.base import Base, mapper_registry
 
-acoes_executadas_tabela = Table(
-    "acoes_executadas",
+auditorias_tabela = Table(
+    "auditorias",
     Base.metadata,
     Column("id", Uuid(as_uuid=True), primary_key=True, default=uuid4),
     Column(
@@ -51,4 +51,4 @@ acoes_executadas_tabela = Table(
     UniqueConstraint("turno_id", "ferramenta", "hash_argumentos"),
 )
 
-mapper_registry.map_imperatively(AcaoExecutada, acoes_executadas_tabela)
+mapper_registry.map_imperatively(Auditoria, auditorias_tabela)

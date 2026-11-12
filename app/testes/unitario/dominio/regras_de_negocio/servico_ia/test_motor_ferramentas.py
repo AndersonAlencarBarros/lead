@@ -82,11 +82,6 @@ async def test_consultar_agenda_volta_ao_modelo_antes_da_resposta():
                     ),
                     ChamadaFerramenta(
                         id="call-2",
-                        nome="adicionar_tag",
-                        argumentos={"tag": "em-atendimento"},
-                    ),
-                    ChamadaFerramenta(
-                        id="call-3",
                         nome="mover_estagio",
                         argumentos={"estagio": "Qualificacao"},
                     ),
@@ -109,52 +104,11 @@ async def test_consultar_agenda_volta_ao_modelo_antes_da_resposta():
 
     assert executadas == [
         "consultar_agenda",
-        "adicionar_tag",
         "mover_estagio",
     ]
     assert resultado.texto == "Tenho quinta às 09h. Pode ser?"
     assert provedor.contextos[1][-1]["role"] == "tool"
     assert "2026-11-12T09:00:00" in provedor.contextos[1][-1]["content"]
-
-
-async def test_turno_sem_tag_e_estagio_recebe_correcao():
-    provedor = ProvedorRoteirizado(
-        [
-            _resposta("Olá, como posso ajudar?"),
-            _resposta(
-                chamadas=(
-                    ChamadaFerramenta(
-                        id="call-1",
-                        nome="adicionar_tag",
-                        argumentos={"tag": "em-atendimento"},
-                    ),
-                    ChamadaFerramenta(
-                        id="call-2",
-                        nome="mover_estagio",
-                        argumentos={"estagio": "Qualificacao"},
-                    ),
-                )
-            ),
-            _resposta("Pode me dizer seu nome e cidade?"),
-        ]
-    )
-
-    async def executar(chamada):
-        return {"ok": True}
-
-    resultado = await ServicoIA(provedor).responder(
-        [],
-        _empresa(),
-        executar_ferramenta=executar,
-    )
-
-    assert resultado.iteracoes == 3
-    assert len(resultado.acoes) == 2
-    assert resultado.texto == "Pode me dizer seu nome e cidade?"
-    assert any(
-        "sem executar adicionar_tag" in (mensagem["content"] or "")
-        for mensagem in provedor.contextos[1]
-    )
 
 
 async def test_chamada_de_ferramenta_sem_executor_falha():
@@ -187,11 +141,6 @@ async def test_tool_call_json_em_texto_e_recuperada():
             _resposta(
                 chamadas=(
                     ChamadaFerramenta(
-                        id="tag",
-                        nome="adicionar_tag",
-                        argumentos={"tag": "em-atendimento"},
-                    ),
-                    ChamadaFerramenta(
                         id="estagio",
                         nome="mover_estagio",
                         argumentos={"estagio": "Qualificacao"},
@@ -217,23 +166,17 @@ async def test_tool_call_json_em_texto_e_recuperada():
 
     assert executadas == [
         "consultar_agenda",
-        "adicionar_tag",
         "mover_estagio",
     ]
     assert resultado.texto == "Tenho quinta às 09h. Pode ser?"
     assert provedor.contextos[1][-1]["role"] == "tool"
 
 
-async def test_json_final_com_tag_e_estagio_nao_e_aceito():
+async def test_json_final_com_estagio_nao_e_aceito():
     provedor = ProvedorRoteirizado(
         [
             _resposta(
                 chamadas=(
-                    ChamadaFerramenta(
-                        id="tag",
-                        nome="adicionar_tag",
-                        argumentos={"tag": "em-atendimento"},
-                    ),
                     ChamadaFerramenta(
                         id="estagio",
                         nome="mover_estagio",
@@ -268,11 +211,6 @@ async def test_json_sem_ferramenta_conhecida_recebe_correcao():
             _resposta(
                 chamadas=(
                     ChamadaFerramenta(
-                        id="tag",
-                        nome="adicionar_tag",
-                        argumentos={"tag": "em-atendimento"},
-                    ),
-                    ChamadaFerramenta(
                         id="estagio",
                         nome="mover_estagio",
                         argumentos={"estagio": "Qualificacao"},
@@ -300,12 +238,8 @@ def test_ferramentas_seguem_playbook_do_tenant():
     empresa = _empresa()
     empresa.configuracoes.playbook = playbook_confeitaria()
     ferramentas = construir_ferramentas(empresa)
-    atualizar = next(
-        ferramenta
-        for ferramenta in ferramentas
-        if ferramenta["function"]["name"] == "atualizar_ficha"
-    )
-    campos = atualizar["function"]["parameters"]["properties"]["campo"]["enum"]
+    nomes = {ferramenta["function"]["name"] for ferramenta in ferramentas}
 
-    assert "produto" in campos
-    assert "imovel" not in campos
+    assert "mover_estagio" in nomes
+    assert "adicionar_tag" not in nomes
+    assert "atualizar_ficha" not in nomes

@@ -64,7 +64,7 @@ Em outro terminal, suba o Redis e o worker Celery (a partir da raiz):
 
 ```bash
 make redis
-make worker
+make celery
 ```
 
 O webhook persiste a mensagem e enfileira a resposta. O worker gera e grava a
@@ -98,6 +98,16 @@ poetry run pytest testes/integracao/ia -v
 ```
 
 Se `OPEN_ROUTER_KEY` estiver ausente, os testes são ignorados.
+
+### Dados de exemplo
+
+Cria ou atualiza os tenants de exemplo `sol-nascente` e `confeitaria-encanto`:
+
+```bash
+poetry run python script/reseed_exemplos.py
+```
+
+O script é idempotente: cria o tenant quando ausente e atualiza o playbook quando ele já existe.
 
 ## Migrations
 

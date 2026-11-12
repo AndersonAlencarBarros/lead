@@ -57,7 +57,7 @@ async def main() -> None:
             {
                 "role": "system",
                 "content": (
-                    "Antes de responder, execute adicionar_tag e mover_estagio. "
+                    "Antes de responder, avalie o lead e execute mover_estagio. "
                     "Use function calling."
                 ),
             },

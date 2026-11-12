@@ -1,4 +1,4 @@
-.PHONY: help setup install run dev run-prod migrate upgrade downgrade current history migration mkmigration test test-quick test-ia ruff ruff-format format-check migration-check build clean redis worker docker-build docker-run docker-run-bg docker-stop
+.PHONY: help setup install run dev run-prod migrate upgrade downgrade current history migration mkmigration test test-quick test-ia ruff ruff-format format-check migration-check build clean redis celery docker-build docker-run docker-run-bg docker-stop
 
 IMAGE_NAME ?= etl-python
 TAG ?= local
@@ -18,7 +18,7 @@ run-prod: ## Inicia a aplicação em modo "produção" (porta via PORT)
 redis: ## Sobe Redis local para o Celery
 	docker run --rm -p 6379:6379 redis:7-alpine
 
-worker: ## Inicia worker Celery para respostas da IA
+celery: ## Inicia worker Celery para respostas da IA
 	cd app && poetry run celery -A infraestrutura.celery_app:celery_app worker --loglevel=info
 
 migrate upgrade: ## Aplica migrações pendentes (alembic upgrade head)

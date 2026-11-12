@@ -4,27 +4,14 @@ from dominio.agregados.empresa import Empresa
 
 
 def construir_ferramentas(empresa: Empresa) -> list[dict[str, Any]]:
-    playbook = empresa.playbook
-
     ferramentas = [
         {
             "type": "function",
             "function": {
-                "name": "adicionar_tag",
-                "description": "Marca o lead com uma tag.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {"tag": {"type": "string"}},
-                    "required": ["tag"],
-                    "additionalProperties": False,
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
                 "name": "mover_estagio",
-                "description": "Move o lead no funil.",
+                "description": (
+                    "Move o lead no funil conforme os critérios de qualificação."
+                ),
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -34,29 +21,6 @@ def construir_ferramentas(empresa: Empresa) -> list[dict[str, Any]]:
                         }
                     },
                     "required": ["estagio"],
-                    "additionalProperties": False,
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "atualizar_ficha",
-                "description": (
-                    "Grava dado dito pelo lead. "
-                    "A evidencia precisa ser trecho literal do lead."
-                ),
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "campo": {
-                            "type": "string",
-                            "enum": [campo.nome for campo in playbook.campos],
-                        },
-                        "valor": {"type": "string"},
-                        "evidencia": {"type": "string"},
-                    },
-                    "required": ["campo", "valor", "evidencia"],
                     "additionalProperties": False,
                 },
             },
@@ -119,7 +83,7 @@ def construir_ferramentas(empresa: Empresa) -> list[dict[str, Any]]:
         },
     ]
 
-    permitidas = {ferramenta.value for ferramenta in playbook.ferramentas}
+    permitidas = {ferramenta.value for ferramenta in empresa.playbook.ferramentas}
     return [
         ferramenta
         for ferramenta in ferramentas

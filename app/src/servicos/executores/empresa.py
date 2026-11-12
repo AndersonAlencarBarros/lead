@@ -2,11 +2,26 @@ from sqlalchemy.exc import IntegrityError
 
 from dominio.agregados.empresa import Empresa
 from dominio.objetos_de_valor.empresa import ConfiguracaoIA, Intervalo
-from dominio.objetos_de_valor.playbook import CampoDaFicha, Playbook, TipoCampo
+from dominio.objetos_de_valor.playbook import Playbook
 from exceptions import EmpresaJaCadastrada
 from infraestrutura import UnidadeDeTrabalho
 from repositorio.empresa import EmpresaDominioRepositorio, EmpresaLeituraRepositorio
-from servicos.serializadores.empresa import EmpresaCriacaoSerializador
+from servicos.serializadores.empresa import (
+    EmpresaCriacaoSerializador,
+    PlaybookSerializador,
+)
+
+
+def montar_playbook(payload: PlaybookSerializador) -> Playbook:
+    return Playbook(
+        nome=payload.nome,
+        versao=payload.versao,
+        objetivo=payload.objetivo,
+        perguntas=tuple(payload.perguntas),
+        criterios_de_qualificacao=tuple(payload.criterios_de_qualificacao),
+        regras=tuple(payload.regras),
+        ferramentas=tuple(payload.ferramentas),
+    )
 
 
 async def criar_empresa(
@@ -20,25 +35,7 @@ async def criar_empresa(
         raise EmpresaJaCadastrada()
 
     configuracao = payload.configuracao_ia
-    playbook = Playbook(
-        nome=payload.playbook.nome,
-        versao=payload.playbook.versao,
-        objetivo=payload.playbook.objetivo,
-        perguntas=tuple(payload.playbook.perguntas),
-        campos=tuple(
-            CampoDaFicha(
-                nome=campo.nome,
-                descricao=campo.descricao,
-                tipo=TipoCampo(campo.tipo),
-                opcoes=tuple(campo.opcoes),
-                obrigatorio=campo.obrigatorio,
-            )
-            for campo in payload.playbook.campos
-        ),
-        criterios_de_qualificacao=tuple(payload.playbook.criterios_de_qualificacao),
-        regras=tuple(payload.playbook.regras),
-        ferramentas=tuple(payload.playbook.ferramentas),
-    )
+    playbook = montar_playbook(payload.playbook)
     empresa = Empresa(
         tenant_id=payload.tenant_id,
         nome=payload.nome,

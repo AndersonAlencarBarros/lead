@@ -100,9 +100,75 @@ async def test_responder_monta_sistema_e_historico():
     assert "informal" in provider.mensagens[0]["content"]
     assert "Seja breve" in provider.mensagens[0]["content"]
     assert "São Paulo" in provider.mensagens[0]["content"]
-    assert "Nome do lead" in provider.mensagens[0]["content"]
+    assert "Perguntas de qualificação" in provider.mensagens[0]["content"]
     assert provider.mensagens[1]["content"] == "Olá"
     assert provider.mensagens[2]["content"] == "Olá! Como posso ajudar?"
+
+
+async def test_prompt_e_contexto_multiturno_com_humano():
+    provider = ProviderFalso()
+    service = ServicoIA(provider)
+    mensagens = [
+        Mensagem(
+            identificador_da_mensagem="msg-1",
+            texto="Olá, tenho interesse",
+            foi_gerada_pela_ia=False,
+            foi_respondida_pelo_usuario=True,
+            criado_em=datetime(2026, 1, 1, 10, 0),
+        ),
+        Mensagem(
+            identificador_da_mensagem="msg-2",
+            texto="Olá! Qual seu nome e cidade?",
+            foi_gerada_pela_ia=True,
+            foi_respondida_pelo_usuario=False,
+            criado_em=datetime(2026, 1, 1, 10, 1),
+        ),
+        Mensagem(
+            identificador_da_mensagem="msg-3",
+            texto="Sou Ana, de Recife",
+            foi_gerada_pela_ia=False,
+            foi_respondida_pelo_usuario=True,
+            criado_em=datetime(2026, 1, 1, 10, 2),
+        ),
+        Mensagem(
+            identificador_da_mensagem="msg-4",
+            texto="Perfeito, Ana. O imóvel é próprio ou alugado?",
+            foi_gerada_pela_ia=False,
+            foi_respondida_pelo_usuario=False,
+            foi_intervencao_humana=True,
+            criado_em=datetime(2026, 1, 1, 10, 3),
+        ),
+        Mensagem(
+            identificador_da_mensagem="msg-5",
+            texto="É próprio",
+            foi_gerada_pela_ia=False,
+            foi_respondida_pelo_usuario=True,
+            criado_em=datetime(2026, 1, 1, 10, 4),
+        ),
+    ]
+
+    await service.responder(mensagens, _empresa())
+
+    assert provider.mensagens is not None
+    assert [mensagem["role"] for mensagem in provider.mensagens] == [
+        "system",
+        "user",
+        "assistant",
+        "user",
+        "assistant",
+        "user",
+    ]
+    assert provider.mensagens[4]["content"] == (
+        "[Atendente humano]: Perfeito, Ana. O imóvel é próprio ou alugado?"
+    )
+    prompt = provider.mensagens[0]["content"]
+    assert "máximo uma pergunta por mensagem" in prompt
+    assert "[Atendente humano]" in prompt
+    assert "Não repita nem contradiga" in prompt
+    assert "Nunca mencione ao lead estágio" in prompt
+    assert "ficha" not in prompt
+    assert "mover_estagio" in prompt
+    assert "em formato técnico" in prompt
 
 
 async def test_falha_do_provider_vira_erro_de_ia():

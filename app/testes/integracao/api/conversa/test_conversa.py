@@ -452,7 +452,7 @@ async def test_intervencao_acao_invalida_retorna_422():
     assert resposta.status_code == 422
 
 
-async def test_intervencao_controla_enfileiramento_da_ia(enfileiramentos):
+async def test_religar_com_humano_espera_proxima_mensagem(enfileiramentos):
     primeira = await _post_mensagem(_payload("msg-1"))
     assert primeira.status_code == 201
     assert enfileiramentos == [("empresa-1", "11988887777", "msg-1")]
@@ -470,6 +470,9 @@ async def test_intervencao_controla_enfileiramento_da_ia(enfileiramentos):
     assert segunda.status_code == 201
     assert len(enfileiramentos) == 1
 
+    humana = await _post_mensagem({**_payload("msg-humano"), "autor": "humano"})
+    assert humana.status_code == 201
+
     religar = await _post_intervencao(
         {
             "tenant_id": "empresa-1",
@@ -478,13 +481,12 @@ async def test_intervencao_controla_enfileiramento_da_ia(enfileiramentos):
         }
     )
     assert religar.status_code == 200
-    assert enfileiramentos[-1] == ("empresa-1", "11988887777", "msg-2")
-    assert len(enfileiramentos) == 2
+    assert enfileiramentos == [("empresa-1", "11988887777", "msg-1")]
 
     terceira = await _post_mensagem(_payload("msg-3"))
     assert terceira.status_code == 201
     assert enfileiramentos[-1] == ("empresa-1", "11988887777", "msg-3")
-    assert len(enfileiramentos) == 3
+    assert len(enfileiramentos) == 2
 
 
 async def test_webhook_autor_humano_marca_intervencao(db_session, enfileiramentos):

@@ -41,11 +41,6 @@ class ProviderFalso(ProvedorLLM):
                 chamadas=(
                     ChamadaFerramenta(
                         id="tool-1",
-                        nome="adicionar_tag",
-                        argumentos={"tag": "em-atendimento"},
-                    ),
-                    ChamadaFerramenta(
-                        id="tool-2",
                         nome="mover_estagio",
                         argumentos={"estagio": "Qualificacao"},
                     ),
@@ -140,6 +135,20 @@ def _mensagem(
         texto=texto,
         foi_gerada_pela_ia=False,
         foi_respondida_pelo_usuario=True,
+        criado_em=horario,
+    )
+
+
+def _mensagem_ia(
+    identificador: str,
+    texto: str,
+    horario: datetime,
+) -> Mensagem:
+    return Mensagem(
+        identificador_da_mensagem=identificador,
+        texto=texto,
+        foi_gerada_pela_ia=True,
+        foi_respondida_pelo_usuario=False,
         criado_em=horario,
     )
 
@@ -303,20 +312,30 @@ async def test_responder_rajada_usa_ultima_mensagem_como_gatilho():
     ]
 
 
-async def test_responder_inclui_intervencoes_humanas_fora_da_janela():
+async def test_responder_usa_historico_incluindo_humano():
     await _criar_empresa()
     agora = datetime.now()
     await _criar_conversa(
         [
             _mensagem(
-                "msg-lead",
-                "mensagem do lead",
+                "msg-lead-1",
+                "Olá, tenho interesse",
                 agora - timedelta(seconds=120),
+            ),
+            _mensagem_ia(
+                "msg-ia-1",
+                "Olá! Qual seu nome e cidade?",
+                agora - timedelta(seconds=110),
             ),
             _mensagem_humana(
                 "msg-humano",
-                "resposta humana",
+                "Sou o atendente. O imóvel é próprio ou alugado?",
                 agora - timedelta(seconds=90),
+            ),
+            _mensagem(
+                "msg-lead-2",
+                "Sou Ana, de Recife",
+                agora - timedelta(seconds=60),
             ),
         ]
     )
@@ -325,7 +344,7 @@ async def test_responder_inclui_intervencoes_humanas_fora_da_janela():
     gerou = await responder_conversa(
         "empresa-1",
         "11988887777",
-        "msg-lead",
+        "msg-lead-2",
         ServicoIA(provider),
     )
 
@@ -333,10 +352,18 @@ async def test_responder_inclui_intervencoes_humanas_fora_da_janela():
     assert len(provider.chamadas) == 2
     contexto = provider.chamadas[0][1:]
     assert [mensagem["content"] for mensagem in contexto] == [
-        "mensagem do lead",
-        "resposta humana",
+        "Olá, tenho interesse",
+        "Olá! Qual seu nome e cidade?",
+        "[Atendente humano]: Sou o atendente. O imóvel é próprio ou alugado?",
+        "Sou Ana, de Recife",
     ]
-    assert [mensagem["role"] for mensagem in contexto] == ["user", "assistant"]
+    assert [mensagem["role"] for mensagem in contexto] == [
+        "user",
+        "assistant",
+        "assistant",
+        "user",
+    ]
+    assert "[Atendente humano]" in provider.chamadas[0][0]["content"]
 
 
 async def test_responder_sem_empresa_nao_gera_resposta():

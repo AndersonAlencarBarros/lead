@@ -3,13 +3,13 @@ from typing import NamedTuple
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from infraestrutura.session import Session
-from repositorio.acao_executada import (
-    AcaoDominioRepositorio,
-    AcaoLeituraRepositorio,
-)
 from repositorio.agendamento import (
     AgendamentoDominioRepositorio,
     AgendamentoLeituraRepositorio,
+)
+from repositorio.auditoria import (
+    AuditoriaDominioRepositorio,
+    AuditoriaLeituraRepositorio,
 )
 from repositorio.conversa import ConversaDominioRepositorio, ConversaLeituraRepositorio
 from repositorio.empresa import EmpresaDominioRepositorio, EmpresaLeituraRepositorio
@@ -47,9 +47,9 @@ class Dominio:
         dominio=TurnoDominioRepositorio,
         leitura=TurnoLeituraRepositorio,
     )
-    ACAO = ParRepositorio(
-        dominio=AcaoDominioRepositorio,
-        leitura=AcaoLeituraRepositorio,
+    AUDITORIA = ParRepositorio(
+        dominio=AuditoriaDominioRepositorio,
+        leitura=AuditoriaLeituraRepositorio,
     )
 
 

@@ -91,15 +91,6 @@ async def _criar_contexto(texto: str = "meu nome é João Pereira, de Caruaru"):
         empresa=empresa,
         conversa_id=conversa.id,
         lead_id=lead.id,
-        mensagens_pendentes=[
-            Mensagem(
-                identificador_da_mensagem="msg-1",
-                texto=texto,
-                foi_gerada_pela_ia=False,
-                foi_respondida_pelo_usuario=True,
-                criado_em=datetime.now(),
-            )
-        ],
         simulacao=False,
         turno=turno,
     )
@@ -116,35 +107,32 @@ async def _buscar_conversa(conversa_id):
         return await uow.leitura.buscar_por_id(conversa_id)
 
 
-async def _listar_acoes(turno_id):
-    async with UnidadeDeTrabalho(Dominio.ACAO) as uow:
+async def _listar_auditorias(turno_id):
+    async with UnidadeDeTrabalho(Dominio.AUDITORIA) as uow:
         return await uow.leitura.listar_por_turno(turno_id)
 
 
-async def test_adicionar_tag_e_mover_estagio():
+async def test_mover_estagio():
     _, lead, _, executor = await _criar_contexto()
 
-    tag = await executor.executar(_chamada("adicionar_tag", {"tag": "qualificado"}))
     estagio = await executor.executar(
         _chamada("mover_estagio", {"estagio": "Agendado"})
     )
 
-    assert tag["ok"] is True
     assert estagio["ok"] is True
     atualizado = await _buscar_lead(lead.id)
-    assert "qualificado" in atualizado.tags
     assert atualizado.estagio == "Agendado"
 
 
-async def test_acoes_executadas_ficam_auditadas():
+async def test_auditorias_ficam_registradas():
     _, _, _, executor = await _criar_contexto()
 
-    await executor.executar(_chamada("adicionar_tag", {"tag": "qualificado"}))
+    await executor.executar(_chamada("mover_estagio", {"estagio": "Qualificado"}))
     await executor.executar(_chamada("mover_estagio", {"estagio": "X"}))
-    acoes = await _listar_acoes(executor._turno.id)
+    auditorias = await _listar_auditorias(executor._turno.id)
 
-    assert [(acao.ferramenta, acao.sucesso) for acao in acoes] == [
-        ("adicionar_tag", True),
+    assert [(auditoria.ferramenta, auditoria.sucesso) for auditoria in auditorias] == [
+        ("mover_estagio", True),
         ("mover_estagio", False),
     ]
 
@@ -159,36 +147,6 @@ async def test_estagio_invalido_nao_move():
     assert resultado["erro"] == "estagio_nao_permitido"
     atualizado = await _buscar_lead(lead.id)
     assert atualizado.estagio is None
-
-
-async def test_atualizar_ficha_exige_evidencia_do_lead():
-    _, lead, _, executor = await _criar_contexto()
-
-    ok = await executor.executar(
-        _chamada(
-            "atualizar_ficha",
-            {
-                "campo": "nome",
-                "valor": "João Pereira",
-                "evidencia": "João Pereira",
-            },
-        )
-    )
-    invalido = await executor.executar(
-        _chamada(
-            "atualizar_ficha",
-            {
-                "campo": "cidade",
-                "valor": "Recife",
-                "evidencia": "Recife",
-            },
-        )
-    )
-
-    assert ok["ok"] is True
-    assert invalido["erro"] == "evidencia_nao_encontrada"
-    atualizado = await _buscar_lead(lead.id)
-    assert atualizado.ficha == {"nome": "João Pereira"}
 
 
 async def test_agenda_consulta_marca_e_nao_duplica():

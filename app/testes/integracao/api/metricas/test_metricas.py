@@ -46,7 +46,13 @@ async def test_metricas_do_tenant(db_session):
             empresa.id,
             uow,
             telefone="11988887777",
-            tags=["qualificado"],
+            estagio="Qualificado",
+        )
+        await criar_lead(
+            empresa.id,
+            uow,
+            telefone="11988887778",
+            estagio="Novo",
         )
         await uow.commit()
 
@@ -86,6 +92,6 @@ async def test_metricas_do_tenant(db_session):
         "tenant_id": "empresa-1",
         "total_conversas": 1,
         "custo_medio_por_conversa": 0.5,
-        "percentual_qualificados": 100.0,
+        "percentual_qualificados": 50.0,
         "percentual_transferidos": 100.0,
     }

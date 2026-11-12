@@ -8,7 +8,7 @@ class MetricasResposta(BaseModel):
         description="Custo médio estimado por conversa."
     )
     percentual_qualificados: float = Field(
-        description="Percentual de leads com tag qualificado."
+        description="Percentual de leads qualificados ou agendados."
     )
     percentual_transferidos: float = Field(
         description="Percentual de conversas transferidas para humano."

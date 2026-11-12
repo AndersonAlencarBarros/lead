@@ -2,7 +2,6 @@ from datetime import datetime
 from uuid import uuid4
 
 from sqlalchemy import (
-    JSON,
     Column,
     DateTime,
     ForeignKey,
@@ -30,8 +29,6 @@ leads_tabela = Table(
     Column("telefone", String(20), nullable=True),
     Column("cidade", String(255), nullable=True),
     Column("estagio", String(20), nullable=True),
-    Column("tags", JSON, nullable=False, default=list),
-    Column("ficha", JSON, nullable=False, default=dict),
     Column("criado_em", DateTime, nullable=False, default=datetime.now),
     UniqueConstraint("empresa_id", "telefone"),
 )

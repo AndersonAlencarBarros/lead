@@ -15,8 +15,6 @@ async def criar_lead(
     telefone: str | None = None,
     cidade: str | None = None,
     estagio: str | None = None,
-    tags: list[str] | None = None,
-    ficha: dict[str, str] | None = None,
 ) -> Lead:
     repo_dominio: LeadDominioRepositorio = uow.dominio
     repo_leitura: LeadLeituraRepositorio = uow.leitura
@@ -34,8 +32,6 @@ async def criar_lead(
         telefone=telefone,
         cidade=cidade,
         estagio=estagio,
-        tags=tags,
-        ficha=ficha,
     )
 
     try:

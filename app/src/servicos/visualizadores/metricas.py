@@ -46,8 +46,9 @@ async def obter_metricas(tenant_id: str) -> MetricasResposta:
     total = int(total_conversas or 0)
     transferidas_total = int(transferidas or 0)
     conversas_com_turno = int(conversas_com_turno or 0)
-    leads_com_tag = [lead for lead in leads if lead.tags]
-    qualificados = [lead for lead in leads_com_tag if "qualificado" in lead.tags]
+    qualificados = [
+        lead for lead in leads if lead.estagio in {"Qualificado", "Agendado"}
+    ]
 
     return MetricasResposta(
         tenant_id=tenant_id,
@@ -56,7 +57,7 @@ async def obter_metricas(tenant_id: str) -> MetricasResposta:
             float(custo_total) / conversas_com_turno if conversas_com_turno else 0.0
         ),
         percentual_qualificados=(
-            100.0 * len(qualificados) / len(leads_com_tag) if leads_com_tag else 0.0
+            100.0 * len(qualificados) / len(leads) if leads else 0.0
         ),
         percentual_transferidos=(100.0 * transferidas_total / total if total else 0.0),
     )

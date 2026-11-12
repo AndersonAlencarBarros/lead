@@ -1,3 +1,5 @@
+import json
+
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -30,6 +32,7 @@ class Session:
                 pool_recycle=settings.db_pool_recycle,
                 pool_pre_ping=settings.db_pool_pre_ping,
                 echo=settings.db_echo,
+                json_serializer=lambda obj: json.dumps(obj, ensure_ascii=False),
             )
             cls._session_factory = async_sessionmaker(
                 cls._engine, expire_on_commit=False

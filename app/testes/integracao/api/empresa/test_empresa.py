@@ -3,7 +3,10 @@ from sqlalchemy import select
 
 import main
 from dominio.agregados.empresa import Empresa
-from servicos.serializadores.empresa import EXEMPLO_PLAYBOOK_SOL_NASCENTE
+from servicos.serializadores.empresa import (
+    EXEMPLO_EMPRESA_CONFEITARIA,
+    EXEMPLO_PLAYBOOK_SOL_NASCENTE,
+)
 
 
 def _payload() -> dict:
@@ -52,6 +55,19 @@ async def test_cria_empresa(db_session):
 
     empresa = (await db_session.execute(select(Empresa))).scalar_one()
     assert empresa.configuracoes.configuracao_ia.nome_assistente == "Ana"
+
+
+async def test_cria_empresa_confeitaria(db_session):
+    resposta = await _post_empresa(EXEMPLO_EMPRESA_CONFEITARIA)
+
+    assert resposta.status_code == 201
+    dados = resposta.json()
+    assert dados["tenant_id"] == "confeitaria-encanto"
+    assert dados["nome"] == "Confeitaria Encanto"
+    assert dados["playbook"]["nome"] == "confeitaria-sob-encomenda"
+    assert "mover_estagio" in dados["playbook"]["ferramentas"]
+    assert "adicionar_tag" not in dados["playbook"]["ferramentas"]
+    assert "atualizar_ficha" not in dados["playbook"]["ferramentas"]
 
 
 async def test_empresa_duplicada_retorna_409():

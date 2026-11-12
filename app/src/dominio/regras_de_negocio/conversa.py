@@ -46,11 +46,21 @@ def idempotente_em_conflito(
 def contexto_para_resposta_da_ia(
     conversa: Conversa,
 ) -> list[Mensagem] | None:
-    """Tudo que o lead falou desde a última resposta da IA."""
+    """Mensagens pendentes que disparam a resposta da IA."""
     if not conversa.ia_pode_responder():
         return None
 
     return conversa.mensagens_pendentes() or None
+
+
+def historico_para_resposta_da_ia(
+    conversa: Conversa,
+) -> list[Mensagem] | None:
+    """Histórico completo da conversa para o prompt da IA."""
+    if not conversa.ia_pode_responder():
+        return None
+
+    return sorted(conversa.mensagens, key=lambda mensagem: mensagem.criado_em) or None
 
 
 def ultima_resposta_da_ia(conversa: Conversa) -> Mensagem | None:
@@ -113,9 +123,17 @@ async def _salvar_resposta_ia(
 def _ultima_mensagem_do_usuario_sem_resposta(
     conversa: Conversa,
 ) -> Mensagem | None:
-    """Última mensagem do lead posterior à última resposta da IA."""
+    """Última mensagem do lead ainda sem resposta da IA nem humana."""
     ultima_ia = ultima_resposta_da_ia(conversa)
-    limite = ultima_ia.criado_em if ultima_ia is not None else None
+    ultima_humana = ultima_mensagem_de_intervencao_humana(conversa)
+    limite = max(
+        (
+            mensagem.criado_em
+            for mensagem in (ultima_ia, ultima_humana)
+            if mensagem is not None
+        ),
+        default=None,
+    )
 
     candidatas = [
         mensagem

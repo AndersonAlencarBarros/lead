@@ -20,24 +20,6 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     """Upgrade schema."""
     op.add_column(
-        "leads",
-        sa.Column(
-            "tags",
-            sa.JSON(),
-            nullable=False,
-            server_default=sa.text("'[]'"),
-        ),
-    )
-    op.add_column(
-        "leads",
-        sa.Column(
-            "ficha",
-            sa.JSON(),
-            nullable=False,
-            server_default=sa.text("'{}'"),
-        ),
-    )
-    op.add_column(
         "mensagens",
         sa.Column(
             "simulacao",
@@ -79,7 +61,7 @@ def upgrade() -> None:
         ["tenant_id"],
     )
     op.create_table(
-        "acoes_executadas",
+        "auditorias",
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("turno_id", sa.Uuid(), nullable=False),
         sa.Column("conversa_id", sa.Uuid(), nullable=False),
@@ -110,18 +92,18 @@ def upgrade() -> None:
         sa.UniqueConstraint("turno_id", "ferramenta", "hash_argumentos"),
     )
     op.create_index(
-        op.f("ix_acoes_executadas_conversa_id"),
-        "acoes_executadas",
+        op.f("ix_auditorias_conversa_id"),
+        "auditorias",
         ["conversa_id"],
     )
     op.create_index(
-        op.f("ix_acoes_executadas_lead_id"),
-        "acoes_executadas",
+        op.f("ix_auditorias_lead_id"),
+        "auditorias",
         ["lead_id"],
     )
     op.create_index(
-        op.f("ix_acoes_executadas_turno_id"),
-        "acoes_executadas",
+        op.f("ix_auditorias_turno_id"),
+        "auditorias",
         ["turno_id"],
     )
 
@@ -129,21 +111,19 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
     op.drop_index(
-        op.f("ix_acoes_executadas_turno_id"),
-        table_name="acoes_executadas",
+        op.f("ix_auditorias_turno_id"),
+        table_name="auditorias",
     )
     op.drop_index(
-        op.f("ix_acoes_executadas_lead_id"),
-        table_name="acoes_executadas",
+        op.f("ix_auditorias_lead_id"),
+        table_name="auditorias",
     )
     op.drop_index(
-        op.f("ix_acoes_executadas_conversa_id"),
-        table_name="acoes_executadas",
+        op.f("ix_auditorias_conversa_id"),
+        table_name="auditorias",
     )
-    op.drop_table("acoes_executadas")
+    op.drop_table("auditorias")
     op.drop_index(op.f("ix_turnos_ia_tenant_id"), table_name="turnos_ia")
     op.drop_index(op.f("ix_turnos_ia_conversa_id"), table_name="turnos_ia")
     op.drop_table("turnos_ia")
     op.drop_column("mensagens", "simulacao")
-    op.drop_column("leads", "ficha")
-    op.drop_column("leads", "tags")

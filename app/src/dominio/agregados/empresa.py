@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime
 from uuid import UUID
 
@@ -17,9 +18,8 @@ from dominio.objetos_de_valor.playbook import Playbook
 def _playbook_padrao() -> Playbook:
     return Playbook(
         nome="padrao",
-        objetivo="Atender o lead e coletar dados.",
+        objetivo="Atender e qualificar o lead.",
         perguntas=(),
-        campos=(),
         criterios_de_qualificacao=(),
         regras=(),
         ferramentas=(),
@@ -88,6 +88,9 @@ class Empresa(Agregado):
 
     def ativar(self):
         self.status = StatusEmpresa.ATIVA
+
+    def atualizar_playbook(self, playbook: Playbook) -> None:
+        self.configuracoes = replace(self.configuracoes, playbook=playbook)
 
     def desativar(self):
         self.status = StatusEmpresa.INATIVA

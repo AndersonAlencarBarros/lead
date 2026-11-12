@@ -82,20 +82,25 @@ class ServicoIA:
         ferramentas = (
             construir_ferramentas(empresa) if executar_ferramenta is not None else []
         )
+        mensagens = list(mensagens)
+        primeiro_turno = not any(
+            mensagem.foi_gerada_pela_ia or mensagem.foi_intervencao_humana
+            for mensagem in mensagens
+        )
+        teve_intervencao_humana = any(
+            mensagem.foi_intervencao_humana for mensagem in mensagens
+        )
         contexto = [
-            {"role": "system", "content": self._prompt_sistema(empresa, lead)},
-            *[
-                {
-                    "role": (
-                        "assistant"
-                        if mensagem.foi_gerada_pela_ia
-                        or mensagem.foi_intervencao_humana
-                        else "user"
-                    ),
-                    "content": mensagem.texto,
-                }
-                for mensagem in mensagens
-            ],
+            {
+                "role": "system",
+                "content": self._prompt_sistema(
+                    empresa,
+                    lead,
+                    primeiro_turno=primeiro_turno,
+                    teve_intervencao_humana=teve_intervencao_humana,
+                ),
+            },
+            *[self._mensagem_para_contexto(mensagem) for mensagem in mensagens],
         ]
 
         try:
@@ -103,17 +108,31 @@ class ServicoIA:
                 contexto,
                 ferramentas,
                 executar_ferramenta,
+                lead,
             )
         except FalhaAoConsultarIA:
             raise
         except Exception as exc:
             raise FalhaAoConsultarIA() from exc
 
+    @staticmethod
+    def _mensagem_para_contexto(mensagem: Mensagem) -> dict[str, str]:
+        if mensagem.foi_intervencao_humana:
+            return {
+                "role": "assistant",
+                "content": f"[Atendente humano]: {mensagem.texto}",
+            }
+        return {
+            "role": "assistant" if mensagem.foi_gerada_pela_ia else "user",
+            "content": mensagem.texto,
+        }
+
     async def _executar_turno(
         self,
         contexto: list[dict[str, Any]],
         ferramentas: list[dict[str, Any]],
         executar_ferramenta: ExecutarFerramenta | None,
+        lead: Lead | None,
     ) -> ResultadoTurno:
         acoes: list[dict[str, Any]] = []
         correcoes = 0
@@ -178,10 +197,8 @@ class ServicoIA:
                 )
                 continue
 
-            falta_invariante = not self._tem_tag_e_estagio(acoes)
             texto_invalido = not self._texto_final_valido(texto)
-
-            if not falta_invariante and not texto_invalido:
+            if not texto_invalido:
                 return self._resultado(
                     texto,
                     acoes,
@@ -195,19 +212,16 @@ class ServicoIA:
             if correcoes > self._max_correcoes:
                 break
 
-            instrucoes = []
-            if falta_invariante:
-                instrucoes.append(
-                    "Você encerrou sem executar adicionar_tag e mover_estagio."
-                )
-            if texto_invalido:
-                instrucoes.append(
-                    "Não responda com JSON, nome de ferramenta ou argumentos. "
-                    "Use function calling e escreva texto natural para o lead."
-                )
-
             contexto.append({"role": "assistant", "content": texto})
-            contexto.append({"role": "system", "content": " ".join(instrucoes)})
+            contexto.append(
+                {
+                    "role": "system",
+                    "content": (
+                        "Não responda com JSON, nome de ferramenta ou argumentos. "
+                        "Use function calling e escreva texto natural para o lead."
+                    ),
+                }
+            )
 
         raise FalhaAoConsultarIA()
 
@@ -254,7 +268,9 @@ class ServicoIA:
                 {
                     "role": "tool",
                     "tool_call_id": chamada.id,
-                    "content": self._serializar(resultado),
+                    "content": self._serializar(
+                        self._resultado_para_contexto(resultado)
+                    ),
                 }
             )
 
@@ -275,11 +291,6 @@ class ServicoIA:
             tokens_saida=tokens_saida,
             iteracoes=iteracoes,
         )
-
-    @staticmethod
-    def _tem_tag_e_estagio(acoes: list[dict[str, Any]]) -> bool:
-        nomes = {acao["ferramenta"] for acao in acoes if acao["sucesso"]}
-        return "adicionar_tag" in nomes and "mover_estagio" in nomes
 
     @staticmethod
     def _texto_final_valido(texto: str) -> bool:
@@ -314,7 +325,13 @@ class ServicoIA:
             argumentos=argumentos,
         )
 
-    def _prompt_sistema(self, empresa: Empresa, lead: Lead | None) -> str:
+    def _prompt_sistema(
+        self,
+        empresa: Empresa,
+        lead: Lead | None,
+        primeiro_turno: bool,
+        teve_intervencao_humana: bool,
+    ) -> str:
         playbook = empresa.playbook
         configuracao = empresa.configuracao_ia
         linhas = [
@@ -324,7 +341,52 @@ class ServicoIA:
             ),
             f"Tom de voz: {configuracao.tom.value}.",
             f"Objetivo: {playbook.objetivo}.",
+            """
+            REGRAS DE CONVERSAÇÃO:
+            1. Faça apenas UMA pergunta por mensagem.
+            2. Nunca solicite várias informações simultaneamente.
+            3. Aguarde a resposta do usuário antes de perguntar o próximo campo.
+            4. Utilize as informações já fornecidas anteriormente.
+            5. Não pergunte novamente informações que já foram respondidas.
+            6. Seja natural e mantenha uma conversa amigável.
+            7. Não apresente opções de agendamento enquanto a
+               qualificação não estiver completa.
+            8. Execute ferramentas somente quando houver informações
+               suficientes para a operação.
+            9. Não considere uma informação como preenchida sem
+               confirmação do usuário.
+
+            IMPORTANTE:
+            Após receber cada resposta, verifique qual é a
+            próxima informação pendente e pergunte somente ela.
+           """,
         ]
+
+        if primeiro_turno:
+            linhas.append(
+                "Esta é a primeira mensagem da conversa. Cumprimente o lead "
+                "e faça no máximo a primeira pergunta de qualificação."
+            )
+        else:
+            linhas.append(
+                "Continue a conversa a partir da última mensagem. Faça no "
+                "máximo uma pergunta por mensagem."
+            )
+
+        if teve_intervencao_humana:
+            linhas.extend(
+                [
+                    (
+                        "Mensagens com o prefixo [Atendente humano] foram "
+                        "escritas por uma pessoa da equipe, não por você."
+                    ),
+                    (
+                        "Continue a partir do que o atendente humano já "
+                        "respondeu. Não repita nem contradiga a resposta dele."
+                    ),
+                    ("Não pergunte dado que o lead ou o atendente humano já informou."),
+                ]
+            )
 
         if configuracao.pode_dizer_que_e_ia:
             linhas.append("Você pode informar que é uma IA quando perguntado.")
@@ -361,27 +423,45 @@ class ServicoIA:
                 + ", ".join(str(estagio) for estagio in empresa.estagios)
             )
 
-        linhas.append("Campos permitidos na ficha:")
-        linhas.extend(f"- {campo.nome}: {campo.descricao}" for campo in playbook.campos)
-
         if lead is not None:
-            linhas.extend(
-                [
-                    f"Ficha atual do lead: {lead.ficha_como_json()}",
-                    f"Tags atuais do lead: {lead.tags}",
-                    f"Estágio atual do lead: {lead.estagio}",
-                ]
-            )
+            linhas.append(f"Estágio atual do lead: {lead.estagio or 'não definido'}")
 
         linhas.extend(
             [
                 (
-                    "Grave na ficha apenas dado dito pelo lead, com evidência "
-                    "literal da mensagem."
+                    "Só ofereça horário depois de concluir as perguntas de "
+                    "qualificação ou se o lead pedir explicitamente para agendar."
                 ),
-                "Não pergunte dado que já está na ficha.",
-                "Consulte a agenda antes de oferecer horário.",
-                "Antes de responder, execute adicionar_tag e mover_estagio.",
+                (
+                    "Consulte a agenda antes de oferecer horário e nunca "
+                    "ofereça horário sem consultar_agenda."
+                ),
+                (
+                    "Execute mover_estagio apenas quando houver mudança real "
+                    "de estágio; não faça isso em saudação."
+                ),
+                (
+                    "Mova para Qualificado quando o lead cumprir os critérios "
+                    "de qualificação; para Desqualificado quando não cumprir; "
+                    "para Agendado após marcar a agenda com sucesso."
+                ),
+                (
+                    "Não marque o lead como Qualificado antes de cumprir os "
+                    "critérios de qualificação."
+                ),
+                (
+                    "Nunca mencione ao lead estágio, qualificação, IDs, nomes "
+                    "de ferramentas ou dados internos."
+                ),
+                (
+                    "Não diga que o lead foi qualificado, desqualificado ou "
+                    "movido de estágio."
+                ),
+                (
+                    "Não repita o perfil completo do lead; confirme apenas o "
+                    "necessário. Informe agendamento apenas com data e hora "
+                    "legíveis, sem formato técnico."
+                ),
                 (
                     "Nunca escreva JSON, nome de ferramenta ou argumentos no "
                     "corpo da mensagem."
@@ -394,6 +474,14 @@ class ServicoIA:
             ]
         )
         return "\n".join(linhas)
+
+    @staticmethod
+    def _resultado_para_contexto(resultado: dict[str, Any]) -> dict[str, Any]:
+        return {
+            chave: valor
+            for chave, valor in resultado.items()
+            if chave != "agendamento_id"
+        }
 
     @staticmethod
     def _serializar(resultado: dict[str, Any]) -> str:

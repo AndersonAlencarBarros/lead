@@ -14,7 +14,7 @@ from dominio.objetos_de_valor.empresa import (
     TomDaIA,
 )
 from dominio.objetos_de_valor.ferramenta import NomeFerramenta
-from dominio.objetos_de_valor.playbook import CampoDaFicha, Playbook, TipoCampo
+from dominio.objetos_de_valor.playbook import Playbook
 from infraestrutura.base import Base, mapper_registry
 from infraestrutura.orm.tipos import EnumString
 
@@ -50,16 +50,6 @@ class DadosEmpresaType(TypeDecorator):
                 "versao": playbook.versao,
                 "objetivo": playbook.objetivo,
                 "perguntas": list(playbook.perguntas),
-                "campos": [
-                    {
-                        "nome": campo.nome,
-                        "descricao": campo.descricao,
-                        "tipo": campo.tipo.value,
-                        "opcoes": list(campo.opcoes),
-                        "obrigatorio": campo.obrigatorio,
-                    }
-                    for campo in playbook.campos
-                ],
                 "criterios_de_qualificacao": list(playbook.criterios_de_qualificacao),
                 "regras": list(playbook.regras),
                 "ferramentas": [
@@ -97,16 +87,6 @@ class DadosEmpresaType(TypeDecorator):
                 versao=playbook.get("versao", 1),
                 objetivo=playbook["objetivo"],
                 perguntas=tuple(playbook.get("perguntas", [])),
-                campos=tuple(
-                    CampoDaFicha(
-                        nome=campo["nome"],
-                        descricao=campo["descricao"],
-                        tipo=TipoCampo(campo["tipo"]),
-                        opcoes=tuple(campo.get("opcoes", [])),
-                        obrigatorio=campo.get("obrigatorio", False),
-                    )
-                    for campo in playbook.get("campos", [])
-                ),
                 criterios_de_qualificacao=tuple(
                     playbook.get("criterios_de_qualificacao", [])
                 ),
