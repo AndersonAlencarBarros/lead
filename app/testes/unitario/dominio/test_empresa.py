@@ -7,6 +7,7 @@ from dominio.objetos_de_valor.empresa import (
     StatusEmpresa,
     TomDaIA,
 )
+from testes.apoio import playbook_solar
 
 
 def _intervalo(inicio: datetime, fim: datetime) -> Intervalo:
@@ -31,6 +32,7 @@ def _empresa(status: StatusEmpresa) -> Empresa:
         regras_gerais=[],
         cidades_atendidas=[],
         estagios=[],
+        playbook=playbook_solar(),
     )
 
 

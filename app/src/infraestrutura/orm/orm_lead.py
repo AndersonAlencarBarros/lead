@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from sqlalchemy import (
+    JSON,
     Column,
     DateTime,
     ForeignKey,
@@ -12,9 +13,7 @@ from sqlalchemy import (
 )
 
 from dominio.agregados.lead import Lead
-from dominio.objetos_de_valor.lead import EstagioDoLead
 from infraestrutura.base import Base, mapper_registry
-from infraestrutura.orm.tipos import EnumString
 
 leads_tabela = Table(
     "leads",
@@ -30,7 +29,9 @@ leads_tabela = Table(
     Column("nome", String(255), nullable=True),
     Column("telefone", String(20), nullable=True),
     Column("cidade", String(255), nullable=True),
-    Column("estagio", EnumString(EstagioDoLead), nullable=True),
+    Column("estagio", String(20), nullable=True),
+    Column("tags", JSON, nullable=False, default=list),
+    Column("ficha", JSON, nullable=False, default=dict),
     Column("criado_em", DateTime, nullable=False, default=datetime.now),
     UniqueConstraint("empresa_id", "telefone"),
 )

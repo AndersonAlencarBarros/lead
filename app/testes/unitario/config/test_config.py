@@ -31,3 +31,12 @@ def test_pool_settings_are_overridable_by_environment(monkeypatch):
     settings = Settings()
     assert settings.db_pool_size == 2
     assert settings.db_max_overflow == 0
+
+
+def test_settings_read_open_router_key(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///./db.sqlite3")
+    monkeypatch.setenv("OPEN_ROUTER_KEY", "chave-openrouter")
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    settings = Settings()
+    assert settings.llm_api_key == "chave-openrouter"
+    assert settings.llm_model == "openrouter/liquid/lfm-3-1.7b:free"

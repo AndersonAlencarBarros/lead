@@ -3,6 +3,7 @@ from sqlalchemy import select
 
 import main
 from dominio.agregados.empresa import Empresa
+from servicos.serializadores.empresa import EXEMPLO_PLAYBOOK_SOL_NASCENTE
 
 
 def _payload() -> dict:
@@ -24,6 +25,7 @@ def _payload() -> dict:
         "regras_gerais": ["responder em português"],
         "cidades_atendidas": ["São Paulo"],
         "estagios": ["qualificado", "agendado"],
+        "playbook": EXEMPLO_PLAYBOOK_SOL_NASCENTE,
     }
 
 

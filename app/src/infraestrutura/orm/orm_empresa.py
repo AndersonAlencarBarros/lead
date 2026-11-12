@@ -13,6 +13,8 @@ from dominio.objetos_de_valor.empresa import (
     StatusEmpresa,
     TomDaIA,
 )
+from dominio.objetos_de_valor.ferramenta import NomeFerramenta
+from dominio.objetos_de_valor.playbook import CampoDaFicha, Playbook, TipoCampo
 from infraestrutura.base import Base, mapper_registry
 from infraestrutura.orm.tipos import EnumString
 
@@ -29,6 +31,7 @@ class DadosEmpresaType(TypeDecorator):
 
         configuracao = value.configuracao_ia
         intervalo = configuracao.horario_atendimento_ia
+        playbook = value.playbook
         return {
             "configuracao_ia": {
                 "tom": configuracao.tom.value,
@@ -42,6 +45,27 @@ class DadosEmpresaType(TypeDecorator):
             "regras_gerais": [str(regra) for regra in value.regras_gerais],
             "cidades_atendidas": [str(cidade) for cidade in value.cidades_atendidas],
             "estagios": [str(estagio) for estagio in value.estagios],
+            "playbook": {
+                "nome": playbook.nome,
+                "versao": playbook.versao,
+                "objetivo": playbook.objetivo,
+                "perguntas": list(playbook.perguntas),
+                "campos": [
+                    {
+                        "nome": campo.nome,
+                        "descricao": campo.descricao,
+                        "tipo": campo.tipo.value,
+                        "opcoes": list(campo.opcoes),
+                        "obrigatorio": campo.obrigatorio,
+                    }
+                    for campo in playbook.campos
+                ],
+                "criterios_de_qualificacao": list(playbook.criterios_de_qualificacao),
+                "regras": list(playbook.regras),
+                "ferramentas": [
+                    ferramenta.value for ferramenta in playbook.ferramentas
+                ],
+            },
         }
 
     def process_result_value(self, value: dict | None, dialect):
@@ -50,6 +74,7 @@ class DadosEmpresaType(TypeDecorator):
 
         configuracao = value["configuracao_ia"]
         intervalo = configuracao["horario_atendimento_ia"]
+        playbook = value["playbook"]
         return DadosEmpresa(
             configuracao_ia=ConfiguracaoIA(
                 tom=TomDaIA(configuracao["tom"]),
@@ -67,6 +92,30 @@ class DadosEmpresaType(TypeDecorator):
                 Cidade(cidade) for cidade in value.get("cidades_atendidas", [])
             ],
             estagios=[Estagio(estagio) for estagio in value.get("estagios", [])],
+            playbook=Playbook(
+                nome=playbook["nome"],
+                versao=playbook.get("versao", 1),
+                objetivo=playbook["objetivo"],
+                perguntas=tuple(playbook.get("perguntas", [])),
+                campos=tuple(
+                    CampoDaFicha(
+                        nome=campo["nome"],
+                        descricao=campo["descricao"],
+                        tipo=TipoCampo(campo["tipo"]),
+                        opcoes=tuple(campo.get("opcoes", [])),
+                        obrigatorio=campo.get("obrigatorio", False),
+                    )
+                    for campo in playbook.get("campos", [])
+                ),
+                criterios_de_qualificacao=tuple(
+                    playbook.get("criterios_de_qualificacao", [])
+                ),
+                regras=tuple(playbook.get("regras", [])),
+                ferramentas=tuple(
+                    NomeFerramenta(ferramenta)
+                    for ferramenta in playbook.get("ferramentas", [])
+                ),
+            ),
         )
 
 

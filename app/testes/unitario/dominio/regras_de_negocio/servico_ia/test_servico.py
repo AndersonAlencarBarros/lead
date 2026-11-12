@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from datetime import datetime
 
 import pytest
@@ -13,21 +12,30 @@ from dominio.objetos_de_valor.empresa import (
     TomDaIA,
 )
 from dominio.regras_de_negocio.servico_ia import (
-    MensagemLLM,
     ProvedorLLM,
+    RespostaLLM,
     ServicoIA,
 )
 from exceptions import FalhaAoConsultarIA
+from testes.apoio import playbook_solar
 
 
 class ProviderFalso(ProvedorLLM):
     def __init__(self, texto: str = "resposta da IA") -> None:
         self.texto = texto
-        self.mensagens: Sequence[MensagemLLM] | None = None
+        self.mensagens: list[dict] | None = None
+        self.ferramentas: list[dict] = []
 
-    async def gerar_resposta(self, mensagens: Sequence[MensagemLLM]) -> str:
+    async def gerar_resposta(self, mensagens, ferramentas):
         self.mensagens = mensagens
-        return self.texto
+        self.ferramentas = ferramentas
+        return RespostaLLM(
+            conteudo=self.texto,
+            chamadas=(),
+            modelo="fake",
+            tokens_entrada=1,
+            tokens_saida=1,
+        )
 
 
 def _empresa() -> Empresa:
@@ -48,6 +56,7 @@ def _empresa() -> Empresa:
         regras_gerais=["Seja breve"],
         cidades_atendidas=["São Paulo"],
         estagios=["novo"],
+        playbook=playbook_solar(),
     )
 
 
@@ -80,24 +89,25 @@ async def test_responder_monta_sistema_e_historico():
 
     resposta = await service.responder(_conversa().mensagens, _empresa())
 
-    assert resposta == "resposta da IA"
+    assert resposta.texto == "resposta da IA"
     assert provider.mensagens is not None
-    assert [mensagem.papel for mensagem in provider.mensagens] == [
+    assert [mensagem["role"] for mensagem in provider.mensagens] == [
         "system",
         "user",
         "assistant",
     ]
-    assert "Ana" in provider.mensagens[0].conteudo
-    assert "informal" in provider.mensagens[0].conteudo
-    assert "Seja breve" in provider.mensagens[0].conteudo
-    assert "São Paulo" in provider.mensagens[0].conteudo
-    assert provider.mensagens[1].conteudo == "Olá"
-    assert provider.mensagens[2].conteudo == "Olá! Como posso ajudar?"
+    assert "Ana" in provider.mensagens[0]["content"]
+    assert "informal" in provider.mensagens[0]["content"]
+    assert "Seja breve" in provider.mensagens[0]["content"]
+    assert "São Paulo" in provider.mensagens[0]["content"]
+    assert "Nome do lead" in provider.mensagens[0]["content"]
+    assert provider.mensagens[1]["content"] == "Olá"
+    assert provider.mensagens[2]["content"] == "Olá! Como posso ajudar?"
 
 
 async def test_falha_do_provider_vira_erro_de_ia():
     class ProviderComFalha(ProvedorLLM):
-        async def gerar_resposta(self, mensagens: Sequence[MensagemLLM]) -> str:
+        async def gerar_resposta(self, mensagens, ferramentas):
             raise RuntimeError("falha")
 
     service = ServicoIA(ProviderComFalha())

@@ -4,7 +4,10 @@ from exceptions import LeadJaCadastrado
 from infraestrutura.unidade_de_trabalho import Dominio, UnidadeDeTrabalho
 from servicos.executores.empresa import criar_empresa
 from servicos.executores.lead import buscar_lead, criar_lead
-from servicos.serializadores.empresa import EmpresaCriacaoSerializador
+from servicos.serializadores.empresa import (
+    EXEMPLO_PLAYBOOK_SOL_NASCENTE,
+    EmpresaCriacaoSerializador,
+)
 
 
 def _empresa_payload() -> EmpresaCriacaoSerializador:
@@ -25,6 +28,7 @@ def _empresa_payload() -> EmpresaCriacaoSerializador:
         regras_gerais=[],
         cidades_atendidas=[],
         estagios=[],
+        playbook=EXEMPLO_PLAYBOOK_SOL_NASCENTE,
     )
 
 

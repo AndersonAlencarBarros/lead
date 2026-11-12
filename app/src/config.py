@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,16 +14,16 @@ class Settings(BaseSettings):
     db_echo: bool = False
 
     llm_model: str = Field(
-        default="ollama/qwen2.5:7b",
+        default="openrouter/liquid/lfm-3-1.7b:free",
         validation_alias="LLM_MODEL",
     )
     llm_api_base: str | None = Field(
-        default="http://localhost:11434",
+        default=None,
         validation_alias="LLM_API_BASE",
     )
     llm_api_key: str | None = Field(
         default=None,
-        validation_alias="LLM_API_KEY",
+        validation_alias=AliasChoices("OPEN_ROUTER_KEY", "LLM_API_KEY"),
     )
     llm_temperature: float = Field(
         default=0.7,
@@ -35,6 +35,16 @@ class Settings(BaseSettings):
         default=60.0,
         gt=0,
         validation_alias="LLM_TIMEOUT_SECONDS",
+    )
+    llm_preco_entrada_por_milhao: float = Field(
+        default=0.0,
+        ge=0,
+        validation_alias="LLM_PRECO_ENTRADA_POR_MILHAO",
+    )
+    llm_preco_saida_por_milhao: float = Field(
+        default=0.0,
+        ge=0,
+        validation_alias="LLM_PRECO_SAIDA_POR_MILHAO",
     )
     celery_broker_url: str = Field(
         default="redis://localhost:6379/0",

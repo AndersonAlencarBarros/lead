@@ -23,3 +23,28 @@ class AgendamentoLeituraRepositorio(Repositorio):
         stmt = select(Agendamento).where(Agendamento.id == agendamento_id)
         resultado = await self.session.execute(stmt)
         return resultado.scalar_one_or_none()
+
+    async def listar_por_empresa_entre(
+        self,
+        empresa_id,
+        inicio,
+        fim,
+    ) -> list[Agendamento]:
+        stmt = select(Agendamento).where(
+            (Agendamento.empresa_id == empresa_id)
+            & (Agendamento.horario_agendado >= inicio)
+            & (Agendamento.horario_agendado <= fim)
+        )
+        resultado = await self.session.execute(stmt)
+        return list(resultado.scalars().all())
+
+    async def buscar_por_lead_e_horario(
+        self,
+        lead_id,
+        horario,
+    ) -> Agendamento | None:
+        stmt = select(Agendamento).where(
+            (Agendamento.lead_id == lead_id) & (Agendamento.horario_agendado == horario)
+        )
+        resultado = await self.session.execute(stmt)
+        return resultado.scalar_one_or_none()

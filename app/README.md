@@ -9,7 +9,7 @@ consultas de conversas e mensagens.
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [SQLAlchemy](https://www.sqlalchemy.org/) 2.x assíncrono + [psycopg](https://www.psycopg.org/psycopg3/) 3 (Postgres)
 - [Alembic](https://alembic.sqlalchemy.org/) para migrations
-- [LiteLLM](https://docs.litellm.ai/) + Ollama local para respostas da IA
+- [LiteLLM](https://docs.litellm.ai/) + OpenRouter para respostas da IA
 - [Celery](https://docs.celeryq.dev/) + Redis para geração assíncrona
 - [pytest](https://docs.pytest.org/) + TestClient (httpx) + [pytest-asyncio](https://pytest-asyncio.readthedocs.io/) + [testcontainers](https://testcontainers-python.readthedocs.io/)
 
@@ -56,7 +56,7 @@ app/
 poetry install
 cp .env.example .env    # SQLite local por padrão; ajuste para Postgres se necessário
 poetry run alembic -c src/infraestrutura/alembic/alembic.ini upgrade head
-ollama pull qwen2.5:7b              # modelo padrão do provider local
+# edite .env e defina OPEN_ROUTER_KEY
 poetry run uvicorn main:app --reload
 ```
 
@@ -70,7 +70,7 @@ make worker
 O webhook persiste a mensagem e enfileira a resposta. O worker gera e grava a
 resposta da IA; a consulta `GET /conversas/...` retorna a última mensagem
 gerada pela IA.
-Ajuste `LLM_MODEL`, `LLM_API_BASE`, `LLM_API_KEY` e `CELERY_BROKER_URL` no
+Ajuste `LLM_MODEL`, `OPEN_ROUTER_KEY` e `CELERY_BROKER_URL` no
 `.env` conforme o ambiente.
 
 Testes:
@@ -88,8 +88,8 @@ configurar `DATABASE_URL`.
 
 ### Testes com LLM real
 
-Os testes em `testes/integracao/ia/` chamam o Ollama real em
-`http://localhost:11434`, usando o modelo `qwen2.5-coder:7b`.
+Os testes em `testes/integracao/ia/` chamam a OpenRouter, usando o modelo
+`liquid/lfm-3-1.7b:free`.
 
 ```bash
 make test-ia
@@ -97,8 +97,7 @@ make test-ia
 poetry run pytest testes/integracao/ia -v
 ```
 
-Se o servidor estiver indisponível ou o modelo ausente, os testes são
-ignorados. Baixe o modelo com `ollama pull qwen2.5-coder:7b`.
+Se `OPEN_ROUTER_KEY` estiver ausente, os testes são ignorados.
 
 ## Migrations
 

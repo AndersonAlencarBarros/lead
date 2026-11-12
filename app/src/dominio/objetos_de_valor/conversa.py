@@ -12,6 +12,7 @@ class Mensagem:
     foi_respondida_pelo_usuario: bool
     criado_em: datetime
     foi_intervencao_humana: bool = False
+    simulacao: bool = False
     id: UUID | None = None
     conversa_id: UUID | None = None
 

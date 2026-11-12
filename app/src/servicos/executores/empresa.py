@@ -2,6 +2,7 @@ from sqlalchemy.exc import IntegrityError
 
 from dominio.agregados.empresa import Empresa
 from dominio.objetos_de_valor.empresa import ConfiguracaoIA, Intervalo
+from dominio.objetos_de_valor.playbook import CampoDaFicha, Playbook, TipoCampo
 from exceptions import EmpresaJaCadastrada
 from infraestrutura import UnidadeDeTrabalho
 from repositorio.empresa import EmpresaDominioRepositorio, EmpresaLeituraRepositorio
@@ -19,6 +20,25 @@ async def criar_empresa(
         raise EmpresaJaCadastrada()
 
     configuracao = payload.configuracao_ia
+    playbook = Playbook(
+        nome=payload.playbook.nome,
+        versao=payload.playbook.versao,
+        objetivo=payload.playbook.objetivo,
+        perguntas=tuple(payload.playbook.perguntas),
+        campos=tuple(
+            CampoDaFicha(
+                nome=campo.nome,
+                descricao=campo.descricao,
+                tipo=TipoCampo(campo.tipo),
+                opcoes=tuple(campo.opcoes),
+                obrigatorio=campo.obrigatorio,
+            )
+            for campo in payload.playbook.campos
+        ),
+        criterios_de_qualificacao=tuple(payload.playbook.criterios_de_qualificacao),
+        regras=tuple(payload.playbook.regras),
+        ferramentas=tuple(payload.playbook.ferramentas),
+    )
     empresa = Empresa(
         tenant_id=payload.tenant_id,
         nome=payload.nome,
@@ -36,6 +56,7 @@ async def criar_empresa(
         regras_gerais=payload.regras_gerais,
         cidades_atendidas=payload.cidades_atendidas,
         estagios=payload.estagios,
+        playbook=playbook,
         janela_de_resposta=payload.janela_de_resposta,
     )
 

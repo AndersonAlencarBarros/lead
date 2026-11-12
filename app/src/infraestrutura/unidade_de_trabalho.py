@@ -3,6 +3,10 @@ from typing import NamedTuple
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from infraestrutura.session import Session
+from repositorio.acao_executada import (
+    AcaoDominioRepositorio,
+    AcaoLeituraRepositorio,
+)
 from repositorio.agendamento import (
     AgendamentoDominioRepositorio,
     AgendamentoLeituraRepositorio,
@@ -10,6 +14,7 @@ from repositorio.agendamento import (
 from repositorio.conversa import ConversaDominioRepositorio, ConversaLeituraRepositorio
 from repositorio.empresa import EmpresaDominioRepositorio, EmpresaLeituraRepositorio
 from repositorio.lead import LeadDominioRepositorio, LeadLeituraRepositorio
+from repositorio.turno_ia import TurnoDominioRepositorio, TurnoLeituraRepositorio
 
 
 class ParRepositorio[TDominio, TLeitura](NamedTuple):
@@ -37,6 +42,14 @@ class Dominio:
     LEAD = ParRepositorio(
         dominio=LeadDominioRepositorio,
         leitura=LeadLeituraRepositorio,
+    )
+    TURNO = ParRepositorio(
+        dominio=TurnoDominioRepositorio,
+        leitura=TurnoLeituraRepositorio,
+    )
+    ACAO = ParRepositorio(
+        dominio=AcaoDominioRepositorio,
+        leitura=AcaoLeituraRepositorio,
     )
 
 

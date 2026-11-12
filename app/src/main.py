@@ -19,6 +19,7 @@ tags_metadata = [
     {"name": "Webhook", "description": "Recebimento de mensagens externas."},
     {"name": "Conversas", "description": "Consulta de conversas e mensagens."},
     {"name": "Empresas", "description": "Cadastro e configuração de empresas."},
+    {"name": "Métricas", "description": "Indicadores por tenant."},
 ]
 
 app = FastAPI(

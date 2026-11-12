@@ -27,6 +27,15 @@ class ConversaMixin:
         resultado = await self.session.execute(stmt)
         return resultado.scalar_one_or_none()
 
+    async def buscar_por_id(self, conversa_id) -> Conversa | None:
+        stmt = (
+            select(Conversa)
+            .where(Conversa.id == conversa_id)
+            .options(selectinload(Conversa.mensagens))
+        )
+        resultado = await self.session.execute(stmt)
+        return resultado.scalar_one_or_none()
+
 
 class ConversaDominioRepositorio(ConversaMixin, Repositorio):
     """Repositório de domínio (escrita e mutação do agregado Conversa)."""

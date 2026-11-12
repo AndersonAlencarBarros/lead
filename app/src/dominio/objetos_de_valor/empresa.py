@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from datetime import datetime, time
 from enum import Enum, StrEnum
 
+from dominio.objetos_de_valor.playbook import Playbook
+
 
 class StatusEmpresa(str, Enum):
     ATIVA = "ativa"
@@ -69,3 +71,4 @@ class DadosEmpresa:
     regras_gerais: list[RegrasGerais]
     cidades_atendidas: list[Cidade]
     estagios: list[Estagio]
+    playbook: Playbook

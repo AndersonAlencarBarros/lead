@@ -3,7 +3,6 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 
 from dominio.agregados.lead import Lead
-from dominio.objetos_de_valor.lead import EstagioDoLead
 from exceptions import LeadJaCadastrado, LeadNaoEncontrado
 from infraestrutura import UnidadeDeTrabalho
 from repositorio.lead import LeadDominioRepositorio, LeadLeituraRepositorio
@@ -15,7 +14,9 @@ async def criar_lead(
     nome: str | None = None,
     telefone: str | None = None,
     cidade: str | None = None,
-    estagio: str | EstagioDoLead | None = None,
+    estagio: str | None = None,
+    tags: list[str] | None = None,
+    ficha: dict[str, str] | None = None,
 ) -> Lead:
     repo_dominio: LeadDominioRepositorio = uow.dominio
     repo_leitura: LeadLeituraRepositorio = uow.leitura
@@ -33,6 +34,8 @@ async def criar_lead(
         telefone=telefone,
         cidade=cidade,
         estagio=estagio,
+        tags=tags,
+        ficha=ficha,
     )
 
     try:

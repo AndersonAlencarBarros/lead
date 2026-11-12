@@ -1,8 +1,8 @@
 from datetime import datetime
 
-import httpx
 import pytest
 
+from config import get_settings
 from dominio.agregados.conversa import Conversa
 from dominio.agregados.empresa import Empresa
 from dominio.objetos_de_valor.conversa import Mensagem
@@ -13,35 +13,28 @@ from dominio.objetos_de_valor.empresa import (
     TomDaIA,
 )
 from dominio.regras_de_negocio.servico_ia import (
-    MensagemLLM,
     ProvedorLiteLLM,
     ServicoIA,
 )
 from infraestrutura.unidade_de_trabalho import Dominio, UnidadeDeTrabalho
 from servicos.executores.conversa import responder_conversa
+from testes.apoio import playbook_solar
 
-MODELO = "ollama/qwen2.5-coder:7b"
-API_BASE = "http://localhost:11434"
+MODELO = "openrouter/liquid/lfm-3-1.7b:free"
 
 
 @pytest.fixture(scope="module", autouse=True)
-def ollama_disponivel():
-    try:
-        resposta = httpx.get(f"{API_BASE}/api/tags", timeout=5)
-        resposta.raise_for_status()
-    except httpx.HTTPError as exc:
-        pytest.skip(f"Ollama indisponível em {API_BASE}: {exc}")
-
-    modelos = {modelo["name"] for modelo in resposta.json().get("models", [])}
-    tag = MODELO.removeprefix("ollama/").removeprefix("ollama_chat/")
-    if tag not in modelos:
-        pytest.skip(f"Modelo {tag} ausente; rode: ollama pull {tag}")
+def llm_disponivel():
+    if not get_settings().llm_api_key:
+        pytest.skip("OPEN_ROUTER_KEY ausente")
 
 
 def _provider() -> ProvedorLiteLLM:
+    settings = get_settings()
     return ProvedorLiteLLM(
         modelo=MODELO,
-        api_base=API_BASE,
+        api_base=settings.llm_api_base,
+        api_key=settings.llm_api_key,
         temperatura=0,
         timeout=120,
     )
@@ -68,6 +61,7 @@ def _empresa() -> Empresa:
         regras_gerais=["Seja breve"],
         cidades_atendidas=["São Paulo"],
         estagios=["novo"],
+        playbook=playbook_solar(),
     )
 
 
@@ -104,31 +98,32 @@ async def _buscar_conversa() -> Conversa | None:
         )
 
 
-async def test_litellm_provider_chama_ollama_real():
+async def test_litellm_provider_chama_llm_real():
     provider = _provider()
 
     resposta = await provider.gerar_resposta(
         [
-            MensagemLLM(
-                "user",
-                "Responda apenas com uma saudação curta em português.",
-            )
-        ]
+            {
+                "role": "user",
+                "content": "Responda apenas com uma saudação curta em português.",
+            }
+        ],
+        [],
     )
 
-    assert isinstance(resposta, str)
-    assert resposta.strip()
+    assert resposta.conteudo is not None
+    assert resposta.conteudo.strip()
 
 
-async def test_ai_service_responde_com_ollama_real():
+async def test_ai_service_responde_com_llm_real():
     service = ServicoIA(_provider())
 
     resposta = await service.responder(_conversa().mensagens, _empresa())
 
-    assert resposta.strip()
+    assert resposta.texto.strip()
 
 
-async def test_responder_conversa_persiste_resposta_com_ollama_real():
+async def test_responder_conversa_persiste_resposta_com_llm_real():
     await _criar_dados()
     service = ServicoIA(_provider())
 
@@ -137,6 +132,7 @@ async def test_responder_conversa_persiste_resposta_com_ollama_real():
         "11988887777",
         "msg-1",
         service,
+        usar_ferramentas=False,
     )
 
     assert gerou is True
@@ -156,6 +152,7 @@ async def test_responder_conversa_persiste_resposta_com_ollama_real():
         "11988887777",
         "msg-1",
         service,
+        usar_ferramentas=False,
     )
 
     assert gerou_novamente is False

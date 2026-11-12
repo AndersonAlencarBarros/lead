@@ -11,6 +11,19 @@ from dominio.objetos_de_valor.empresa import (
     StatusEmpresa,
     Telefone,
 )
+from dominio.objetos_de_valor.playbook import Playbook
+
+
+def _playbook_padrao() -> Playbook:
+    return Playbook(
+        nome="padrao",
+        objetivo="Atender o lead e coletar dados.",
+        perguntas=(),
+        campos=(),
+        criterios_de_qualificacao=(),
+        regras=(),
+        ferramentas=(),
+    )
 
 
 class Empresa(Agregado):
@@ -33,6 +46,7 @@ class Empresa(Agregado):
         regras_gerais: list[str],
         cidades_atendidas: list[str],
         estagios: list[str],
+        playbook: Playbook | None = None,
         id: UUID | None = None,
         criado_em: datetime | None = None,
         janela_de_resposta: float = 10,
@@ -49,6 +63,7 @@ class Empresa(Agregado):
             regras_gerais=[RegrasGerais(regra) for regra in regras_gerais],
             cidades_atendidas=[Cidade(cidade) for cidade in cidades_atendidas],
             estagios=[Estagio(estagio) for estagio in estagios],
+            playbook=playbook or _playbook_padrao(),
         )
 
     @property
@@ -66,6 +81,10 @@ class Empresa(Agregado):
     @property
     def estagios(self) -> list[Estagio]:
         return self.configuracoes.estagios
+
+    @property
+    def playbook(self) -> Playbook:
+        return self.configuracoes.playbook
 
     def ativar(self):
         self.status = StatusEmpresa.ATIVA

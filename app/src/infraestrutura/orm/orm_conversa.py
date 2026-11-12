@@ -58,6 +58,7 @@ mensagens_tabela = Table(
     Column("foi_gerada_pela_ia", Boolean, nullable=False, default=False),
     Column("foi_respondida_pelo_usuario", Boolean, nullable=False, default=False),
     Column("foi_intervencao_humana", Boolean, nullable=False, default=False),
+    Column("simulacao", Boolean, nullable=False, default=False),
     Column("criado_em", DateTime, nullable=False, default=datetime.now),
 )
 

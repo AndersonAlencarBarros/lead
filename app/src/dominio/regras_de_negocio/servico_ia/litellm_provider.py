@@ -1,17 +1,22 @@
-from collections.abc import Sequence
+import json
+import logging
+from typing import Any
 
 import litellm
 
 from config import get_settings
 from dominio.regras_de_negocio.servico_ia.servico import (
-    MensagemLLM,
+    ChamadaFerramenta,
     ProvedorLLM,
+    RespostaLLM,
     ServicoIA,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class ProvedorLiteLLM(ProvedorLLM):
-    """Provedor de LLM baseado no LiteLLM."""
+    """Provedor de LLM baseado no LiteLLM, com tool calling."""
 
     def __init__(
         self,
@@ -27,16 +32,21 @@ class ProvedorLiteLLM(ProvedorLLM):
         self._temperatura = temperatura
         self._timeout = timeout
 
-    async def gerar_resposta(self, mensagens: Sequence[MensagemLLM]) -> str:
-        parametros = {
+    async def gerar_resposta(
+        self,
+        mensagens: list[dict[str, Any]],
+        ferramentas: list[dict[str, Any]],
+    ) -> RespostaLLM:
+        parametros: dict[str, Any] = {
             "model": self._modelo,
-            "messages": [
-                {"role": mensagem.papel, "content": mensagem.conteudo}
-                for mensagem in mensagens
-            ],
+            "messages": mensagens,
             "temperature": self._temperatura,
             "timeout": self._timeout,
         }
+
+        if ferramentas:
+            parametros["tools"] = ferramentas
+            parametros["tool_choice"] = "auto"
 
         if self._api_base:
             parametros["api_base"] = self._api_base
@@ -46,17 +56,65 @@ class ProvedorLiteLLM(ProvedorLLM):
         resposta = await litellm.acompletion(**parametros)
 
         try:
-            conteudo = resposta.choices[0].message.content
+            mensagem = resposta.choices[0].message
         except (AttributeError, IndexError, TypeError) as exc:
             raise ValueError("Resposta inválida do provedor de IA") from exc
 
-        if not isinstance(conteudo, str):
+        conteudo = getattr(mensagem, "content", None)
+        if isinstance(conteudo, dict):
+            conteudo = json.dumps(conteudo, ensure_ascii=False)
+        if conteudo is not None and not isinstance(conteudo, str):
             raise TypeError("Resposta inválida do provedor de IA")
 
-        if not conteudo.strip():
+        chamadas = tuple(
+            self._chamada(chamada)
+            for chamada in (getattr(mensagem, "tool_calls", None) or ())
+        )
+
+        if not (conteudo or "").strip() and not chamadas:
             raise ValueError("Resposta vazia do provedor de IA")
 
-        return conteudo
+        if not chamadas and (conteudo or "").lstrip().startswith(("{", "[")):
+            logger.warning(
+                "provider_devolveu_json_no_conteudo",
+                extra={
+                    "modelo": str(
+                        getattr(resposta, "model", self._modelo) or self._modelo
+                    ),
+                    "conteudo": conteudo[:300],
+                },
+            )
+
+        usage = getattr(resposta, "usage", None)
+        tokens_entrada = self._token(usage, "prompt_tokens")
+        tokens_saida = self._token(usage, "completion_tokens")
+
+        return RespostaLLM(
+            conteudo=conteudo,
+            chamadas=chamadas,
+            modelo=str(getattr(resposta, "model", self._modelo) or self._modelo),
+            tokens_entrada=tokens_entrada,
+            tokens_saida=tokens_saida,
+        )
+
+    @staticmethod
+    def _chamada(chamada: Any) -> ChamadaFerramenta:
+        argumentos = chamada.function.arguments or "{}"
+        if isinstance(argumentos, str):
+            argumentos = json.loads(argumentos)
+        return ChamadaFerramenta(
+            id=chamada.id,
+            nome=chamada.function.name,
+            argumentos=argumentos,
+        )
+
+    @staticmethod
+    def _token(usage: Any, campo: str) -> int:
+        if usage is None:
+            return 0
+        if isinstance(usage, dict):
+            return int(usage.get(campo) or 0)
+        return int(getattr(usage, campo, 0) or 0)
 
 
 def construir_servico_ia() -> ServicoIA:

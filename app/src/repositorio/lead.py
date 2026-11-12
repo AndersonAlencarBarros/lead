@@ -32,3 +32,8 @@ class LeadLeituraRepositorio(Repositorio):
         )
         resultado = await self.session.execute(stmt)
         return resultado.scalar_one_or_none()
+
+    async def listar_por_empresa(self, empresa_id) -> list[Lead]:
+        stmt = select(Lead).where(Lead.empresa_id == empresa_id)
+        resultado = await self.session.execute(stmt)
+        return list(resultado.scalars().all())

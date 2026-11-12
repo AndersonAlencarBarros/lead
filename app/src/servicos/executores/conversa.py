@@ -1,7 +1,11 @@
+import time
 from datetime import datetime
 
+from config import get_settings
 from dominio.agregados.conversa import Conversa
 from dominio.agregados.empresa import Empresa
+from dominio.agregados.lead import Lead
+from dominio.agregados.turno_ia import StatusTurno, TurnoIA
 from dominio.objetos_de_valor.conversa import (
     AcaoIntervencao,
     AutorMensagem,
@@ -26,6 +30,9 @@ from exceptions import (
 )
 from infraestrutura import Dominio, UnidadeDeTrabalho
 from repositorio.conversa import ConversaDominioRepositorio, ConversaLeituraRepositorio
+from repositorio.lead import LeadDominioRepositorio, LeadLeituraRepositorio
+from repositorio.turno_ia import TurnoDominioRepositorio, TurnoLeituraRepositorio
+from servicos.executores.ferramentas import ExecutorFerramentas
 from servicos.serializadores.conversacao import (
     IntervencaoSerializador,
     MensagemSerializador,
@@ -64,6 +71,23 @@ async def receber_mensagem(
             telefone=mensagem.telefone,
         )
 
+    if empresa is not None and conversa.lead_id is None:
+        lead_repo = LeadDominioRepositorio(uow.session)
+        lead_leitura = LeadLeituraRepositorio(uow.session)
+        lead = await lead_leitura.buscar_por_empresa_e_telefone(
+            empresa.id,
+            mensagem.telefone,
+        )
+        if lead is None:
+            from dominio.agregados.lead import Lead
+
+            lead = Lead(
+                empresa_id=empresa.id,
+                telefone=mensagem.telefone,
+            )
+            lead = await lead_repo.salvar(lead)
+        conversa.lead_id = lead.id
+
     eh_humano = mensagem.autor is AutorMensagem.HUMANO
 
     # Adiciona uma mensagem a conversa
@@ -76,6 +100,7 @@ async def receber_mensagem(
             foi_gerada_pela_ia=False,
             foi_respondida_pelo_usuario=not eh_humano,
             foi_intervencao_humana=eh_humano,
+            simulacao=mensagem.simulacao,
             criado_em=datetime.now(),
         )
     )
@@ -172,8 +197,11 @@ async def responder_conversa(
     telefone: str,
     mensagem_id: str,
     servico_ia: ServicoIA,
+    usar_ferramentas: bool = True,
 ) -> bool:
     """Gera e persiste a resposta da IA para a mensagem informada."""
+
+    inicio = time.perf_counter()
 
     async with UnidadeDeTrabalho(Dominio.CONVERSA) as uow:
         empresa: Empresa | None = await uow.dominio.buscar_empresa_por_tenant_id(
@@ -204,15 +232,145 @@ async def responder_conversa(
                 uow,
             )
 
+        lead = await _obter_ou_criar_lead(uow, empresa, conversa, telefone)
+        if lead is None:
+            return False
+
         mensagens_contexto = contexto_para_resposta_da_ia(conversa)
         if mensagens_contexto is None:
             return False
+        mensagens_contexto = [
+            Mensagem(
+                identificador_da_mensagem=mensagem.identificador_da_mensagem,
+                texto=mensagem.texto,
+                foi_gerada_pela_ia=mensagem.foi_gerada_pela_ia,
+                foi_respondida_pelo_usuario=mensagem.foi_respondida_pelo_usuario,
+                foi_intervencao_humana=mensagem.foi_intervencao_humana,
+                simulacao=mensagem.simulacao,
+                criado_em=mensagem.criado_em,
+            )
+            for mensagem in mensagens_contexto
+        ]
 
-        texto = await servico_ia.responder(mensagens_contexto, empresa)
+        turno_repo = TurnoDominioRepositorio(uow.session)
+        turno_leitura = TurnoLeituraRepositorio(uow.session)
+        turno = await turno_leitura.buscar_por_conversa_e_mensagem(
+            conversa.id,
+            mensagem_id,
+        )
+        if turno is None:
+            turno = TurnoIA(
+                conversa_id=conversa.id,
+                tenant_id=tenant_id,
+                mensagem_origem_id=mensagem_id,
+            )
+        else:
+            turno.status = StatusTurno.EM_ANDAMENTO
+            turno.erro = None
+        turno = await turno_repo.salvar(turno)
+        await uow.commit()
 
-        return await _salvar_resposta_ia(
+        conversa_id = conversa.id
+        lead_id = lead.id
+        simulacao = ultima_do_lead.simulacao
+
+    executor = ExecutorFerramentas(
+        empresa=empresa,
+        conversa_id=conversa_id,
+        lead_id=lead_id,
+        mensagens_pendentes=mensagens_contexto,
+        simulacao=simulacao,
+        turno=turno,
+    )
+
+    try:
+        resultado = await servico_ia.responder(
+            mensagens_contexto,
+            empresa,
+            lead=lead,
+            executar_ferramenta=executor.executar if usar_ferramentas else None,
+        )
+    except Exception as exc:
+        await _marcar_turno_como_falho(turno.id, str(exc))
+        raise
+
+    latencia_ms = int((time.perf_counter() - inicio) * 1000)
+    settings = get_settings()
+    custo = (
+        resultado.tokens_entrada / 1_000_000 * settings.llm_preco_entrada_por_milhao
+        + resultado.tokens_saida / 1_000_000 * settings.llm_preco_saida_por_milhao
+    )
+
+    async with UnidadeDeTrabalho(Dominio.CONVERSA) as uow:
+        conversa = await ConversaLeituraRepositorio(uow.session).buscar_por_id(
+            conversa_id
+        )
+        transferiu = any(
+            acao["ferramenta"] == "transferir_humano" and acao["sucesso"]
+            for acao in resultado.acoes
+        )
+        if conversa is None or (not conversa.ia_pode_responder() and not transferiu):
+            return False
+
+        ultima_do_lead = conversa.ultima_mensagem_do_lead()
+        if (
+            ultima_do_lead is None
+            or ultima_do_lead.identificador_da_mensagem != mensagem_id
+        ):
+            return False
+
+        salvo = await _salvar_resposta_ia(
             conversa,
             mensagem_id,
-            texto,
+            resultado.texto,
             uow,
         )
+        if not salvo:
+            return False
+
+        turno = await TurnoLeituraRepositorio(uow.session).buscar_por_id(turno.id)
+        if turno is not None:
+            turno.concluir(
+                modelo=resultado.modelo,
+                tokens_entrada=resultado.tokens_entrada,
+                tokens_saida=resultado.tokens_saida,
+                custo_estimado=custo,
+                latencia_ms=latencia_ms,
+            )
+            await TurnoDominioRepositorio(uow.session).salvar(turno)
+
+        await uow.commit()
+        return True
+
+
+async def _obter_ou_criar_lead(
+    uow: UnidadeDeTrabalho,
+    empresa: Empresa,
+    conversa: Conversa,
+    telefone: str,
+) -> Lead | None:
+    if conversa.lead_id is not None:
+        return await LeadLeituraRepositorio(uow.session).buscar_por_id(conversa.lead_id)
+
+    lead_repo = LeadDominioRepositorio(uow.session)
+    lead = await LeadLeituraRepositorio(uow.session).buscar_por_empresa_e_telefone(
+        empresa.id,
+        telefone,
+    )
+    if lead is None:
+        lead = Lead(empresa_id=empresa.id, telefone=telefone)
+        lead = await lead_repo.salvar(lead)
+
+    conversa.lead_id = lead.id
+    await ConversaDominioRepositorio(uow.session).salvar(conversa)
+    return lead
+
+
+async def _marcar_turno_como_falho(turno_id, erro: str) -> None:
+    async with UnidadeDeTrabalho(Dominio.TURNO) as uow:
+        turno = await uow.leitura.buscar_por_id(turno_id)
+        if turno is None:
+            return
+        turno.falhar(erro[:500])
+        await uow.dominio.salvar(turno)
+        await uow.commit()

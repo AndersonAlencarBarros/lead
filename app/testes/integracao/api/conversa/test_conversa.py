@@ -16,6 +16,7 @@ from dominio.objetos_de_valor.empresa import (
     TomDaIA,
 )
 from infraestrutura.unidade_de_trabalho import Dominio, UnidadeDeTrabalho
+from testes.apoio import playbook_solar
 
 
 def _payload(
@@ -53,6 +54,7 @@ async def _criar_conversa(
         regras_gerais=[],
         cidades_atendidas=[],
         estagios=[],
+        playbook=playbook_solar(),
     )
     async with UnidadeDeTrabalho(Dominio.EMPRESA) as uow:
         empresa_salva = await uow.dominio.salvar(empresa)

@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from datetime import datetime, timedelta
 
 import pytest
@@ -13,22 +12,55 @@ from dominio.objetos_de_valor.empresa import (
     TomDaIA,
 )
 from dominio.regras_de_negocio.servico_ia import (
-    MensagemLLM,
+    ChamadaFerramenta,
     ProvedorLLM,
+    RespostaLLM,
     ServicoIA,
 )
 from infraestrutura.unidade_de_trabalho import Dominio, UnidadeDeTrabalho
 from servicos.executores.conversa import responder_conversa
+from testes.apoio import playbook_solar
 
 
 class ProviderFalso(ProvedorLLM):
     def __init__(self, texto: str = "resposta da IA") -> None:
         self.texto = texto
-        self.chamadas: list[Sequence[MensagemLLM]] = []
+        self.chamadas: list[tuple[dict, ...]] = []
+        self.turnos = 0
 
-    async def gerar_resposta(self, mensagens: Sequence[MensagemLLM]) -> str:
-        self.chamadas.append(mensagens)
-        return self.texto
+    async def gerar_resposta(
+        self,
+        mensagens,
+        ferramentas=(),
+    ) -> RespostaLLM:
+        self.chamadas.append(tuple(dict(mensagem) for mensagem in mensagens))
+        self.turnos += 1
+        if self.turnos == 1:
+            return RespostaLLM(
+                conteudo=None,
+                chamadas=(
+                    ChamadaFerramenta(
+                        id="tool-1",
+                        nome="adicionar_tag",
+                        argumentos={"tag": "em-atendimento"},
+                    ),
+                    ChamadaFerramenta(
+                        id="tool-2",
+                        nome="mover_estagio",
+                        argumentos={"estagio": "Qualificacao"},
+                    ),
+                ),
+                modelo="fake",
+                tokens_entrada=1,
+                tokens_saida=1,
+            )
+        return RespostaLLM(
+            conteudo=self.texto,
+            chamadas=(),
+            modelo="fake",
+            tokens_entrada=1,
+            tokens_saida=1,
+        )
 
 
 def _empresa(
@@ -55,7 +87,15 @@ def _empresa(
         ),
         regras_gerais=[],
         cidades_atendidas=[],
-        estagios=[],
+        estagios=[
+            "Novo",
+            "Qualificacao",
+            "Qualificado",
+            "Desqualificado",
+            "Agendado",
+            "Humano",
+        ],
+        playbook=playbook_solar(),
     )
 
 
@@ -147,7 +187,7 @@ async def test_responder_persiste_resposta_da_ia():
     assert resposta.foi_gerada_pela_ia is True
     assert resposta.foi_respondida_pelo_usuario is False
     assert resposta.identificador_da_mensagem.startswith("ia:")
-    assert len(provider.chamadas) == 1
+    assert len(provider.chamadas) == 2
 
 
 async def test_responder_nao_duplica_resposta():
@@ -167,7 +207,7 @@ async def test_responder_nao_duplica_resposta():
     conversa = await _buscar_conversa()
     assert conversa is not None
     assert len(conversa.mensagens) == 2
-    assert len(provider.chamadas) == 1
+    assert len(provider.chamadas) == 2
 
 
 async def test_responder_ignora_gatilho_antigo():
@@ -204,7 +244,7 @@ async def test_responder_processa_gatilho_antigo():
     )
 
     assert gerou is True
-    assert len(provider.chamadas) == 1
+    assert len(provider.chamadas) == 2
 
 
 async def test_responder_envia_mensagens_pendentes_para_ia():
@@ -223,8 +263,8 @@ async def test_responder_envia_mensagens_pendentes_para_ia():
     )
 
     assert gerou is True
-    assert len(provider.chamadas) == 1
-    assert [mensagem.conteudo for mensagem in provider.chamadas[0][1:]] == [
+    assert len(provider.chamadas) == 2
+    assert [mensagem["content"] for mensagem in provider.chamadas[0][1:]] == [
         "antiga",
         "recente",
     ]
@@ -255,8 +295,8 @@ async def test_responder_rajada_usa_ultima_mensagem_como_gatilho():
     )
 
     assert gerou is True
-    assert len(provider.chamadas) == 1
-    assert [mensagem.conteudo for mensagem in provider.chamadas[0][1:]] == [
+    assert len(provider.chamadas) == 2
+    assert [mensagem["content"] for mensagem in provider.chamadas[0][1:]] == [
         "oi",
         "quero energia solar",
         "me manda um orçamento",
@@ -290,13 +330,13 @@ async def test_responder_inclui_intervencoes_humanas_fora_da_janela():
     )
 
     assert gerou is True
-    assert len(provider.chamadas) == 1
+    assert len(provider.chamadas) == 2
     contexto = provider.chamadas[0][1:]
-    assert [mensagem.conteudo for mensagem in contexto] == [
+    assert [mensagem["content"] for mensagem in contexto] == [
         "mensagem do lead",
         "resposta humana",
     ]
-    assert [mensagem.papel for mensagem in contexto] == ["user", "assistant"]
+    assert [mensagem["role"] for mensagem in contexto] == ["user", "assistant"]
 
 
 async def test_responder_sem_empresa_nao_gera_resposta():

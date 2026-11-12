@@ -28,6 +28,10 @@ class MensagemSerializador(BaseModel):
         default=None,
         description="Autor da mensagem: usuário/lead ou humano da empresa.",
     )
+    simulacao: bool = Field(
+        default=False,
+        description="Em simulação, notificações não são enviadas de verdade.",
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -93,6 +97,10 @@ class MensagemResposta(BaseModel):
     )
     foi_intervencao_humana: bool = Field(
         description="Indica se a mensagem foi uma intervenção humana da empresa."
+    )
+    simulacao: bool = Field(
+        default=False,
+        description="Indica se a mensagem foi recebida em modo simulação.",
     )
     criado_em: datetime = Field(description="Data de criação da mensagem.")
 
