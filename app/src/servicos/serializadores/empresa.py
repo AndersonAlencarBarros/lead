@@ -56,6 +56,7 @@ EXEMPLO_PLAYBOOK_SOL_NASCENTE = {
         "Nunca informar preço final.",
     ],
     "ferramentas": [
+        "atualizar_lead",
         "mover_estagio",
         "notificar_equipe",
         "transferir_humano",
@@ -123,6 +124,7 @@ EXEMPLO_PLAYBOOK_CONFEITARIA = {
         "Não pedir nem repetir dados bancários.",
     ],
     "ferramentas": [
+        "atualizar_lead",
         "mover_estagio",
         "notificar_equipe",
         "transferir_humano",

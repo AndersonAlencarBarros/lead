@@ -168,6 +168,7 @@ async def test_prompt_e_contexto_multiturno_com_humano():
     assert "Nunca mencione ao lead estágio" in prompt
     assert "ficha" not in prompt
     assert "mover_estagio" in prompt
+    assert "atualizar_lead" in prompt
     assert "em formato técnico" in prompt
 
 

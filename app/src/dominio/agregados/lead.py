@@ -34,3 +34,13 @@ class Lead(Agregado):
 
     def mover_estagio(self, estagio: str) -> None:
         self.estagio = estagio
+
+    def atualizar_dados(
+        self,
+        nome: str | None = None,
+        cidade: str | None = None,
+    ) -> None:
+        if nome is not None:
+            self.nome = Nome(nome)
+        if cidade is not None:
+            self.cidade = Cidade(cidade)

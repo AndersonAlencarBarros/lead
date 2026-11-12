@@ -241,5 +241,6 @@ def test_ferramentas_seguem_playbook_do_tenant():
     nomes = {ferramenta["function"]["name"] for ferramenta in ferramentas}
 
     assert "mover_estagio" in nomes
+    assert "atualizar_lead" in nomes
     assert "adicionar_tag" not in nomes
     assert "atualizar_ficha" not in nomes

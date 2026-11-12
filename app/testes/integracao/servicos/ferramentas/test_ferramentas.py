@@ -124,6 +124,35 @@ async def test_mover_estagio():
     assert atualizado.estagio == "Agendado"
 
 
+async def test_atualizar_lead_salva_nome_e_cidade():
+    _, lead, _, executor = await _criar_contexto()
+
+    resultado = await executor.executar(
+        _chamada(
+            "atualizar_lead",
+            {"nome": "João Pereira", "cidade": "Recife"},
+        )
+    )
+
+    assert resultado["ok"] is True
+    atualizado = await _buscar_lead(lead.id)
+    assert atualizado.nome == "João Pereira"
+    assert atualizado.cidade == "Recife"
+
+    auditorias = await _listar_auditorias(executor._turno.id)
+    assert [(auditoria.ferramenta, auditoria.sucesso) for auditoria in auditorias] == [
+        ("atualizar_lead", True),
+    ]
+
+
+async def test_atualizar_lead_rejeita_argumentos_vazios():
+    _, _, _, executor = await _criar_contexto()
+
+    resultado = await executor.executar(_chamada("atualizar_lead", {}))
+
+    assert resultado["erro"] == "argumento_invalido:nome_ou_cidade"
+
+
 async def test_auditorias_ficam_registradas():
     _, _, _, executor = await _criar_contexto()
 

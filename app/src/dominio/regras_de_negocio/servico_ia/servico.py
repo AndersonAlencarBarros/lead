@@ -425,6 +425,10 @@ class ServicoIA:
 
         if lead is not None:
             linhas.append(f"Estágio atual do lead: {lead.estagio or 'não definido'}")
+            if lead.nome is not None:
+                linhas.append(f"Nome já registrado do lead: {lead.nome}")
+            if lead.cidade is not None:
+                linhas.append(f"Cidade já registrada do lead: {lead.cidade}")
 
         linhas.extend(
             [
@@ -439,6 +443,11 @@ class ServicoIA:
                 (
                     "Execute mover_estagio apenas quando houver mudança real "
                     "de estágio; não faça isso em saudação."
+                ),
+                (
+                    "Sempre que o lead informar nome ou cidade, chame "
+                    "atualizar_lead antes de responder. Registre apenas dados "
+                    "explicitamente informados pelo lead."
                 ),
                 (
                     "Mova para Qualificado quando o lead cumprir os critérios "

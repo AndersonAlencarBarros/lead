@@ -18,6 +18,7 @@ def playbook_solar() -> Playbook:
         ),
         regras=("Nunca prometer economia exata.",),
         ferramentas=(
+            NomeFerramenta.ATUALIZAR_LEAD,
             NomeFerramenta.MOVER_ESTAGIO,
             NomeFerramenta.NOTIFICAR_EQUIPE,
             NomeFerramenta.TRANSFERIR_HUMANO,
@@ -39,6 +40,7 @@ def playbook_confeitaria() -> Playbook:
         criterios_de_qualificacao=("Data futura e quantidade minima de 20 unidades.",),
         regras=("Nunca confirmar preco final.",),
         ferramentas=(
+            NomeFerramenta.ATUALIZAR_LEAD,
             NomeFerramenta.MOVER_ESTAGIO,
             NomeFerramenta.NOTIFICAR_EQUIPE,
             NomeFerramenta.TRANSFERIR_HUMANO,

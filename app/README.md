@@ -104,7 +104,7 @@ Se `OPEN_ROUTER_KEY` estiver ausente, os testes são ignorados.
 Cria ou atualiza os tenants de exemplo `sol-nascente` e `confeitaria-encanto`:
 
 ```bash
-poetry run python script/reseed_exemplos.py
+poetry run python script/persistir_exemplos_de_tenant.py
 ```
 
 O script é idempotente: cria o tenant quando ausente e atualiza o playbook quando ele já existe.

@@ -66,6 +66,7 @@ async def test_cria_empresa_confeitaria(db_session):
     assert dados["nome"] == "Confeitaria Encanto"
     assert dados["playbook"]["nome"] == "confeitaria-sob-encomenda"
     assert "mover_estagio" in dados["playbook"]["ferramentas"]
+    assert "atualizar_lead" in dados["playbook"]["ferramentas"]
     assert "adicionar_tag" not in dados["playbook"]["ferramentas"]
     assert "atualizar_ficha" not in dados["playbook"]["ferramentas"]
 

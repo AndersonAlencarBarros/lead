@@ -6,7 +6,7 @@ Pré-requisito:
 
 Uso:
     cd app
-    poetry run python script/reseed_exemplos.py
+    poetry run python script/persistir_exemplos_de_tenant.py
 """
 
 import asyncio

@@ -36,6 +36,7 @@ def test_pool_settings_are_overridable_by_environment(monkeypatch):
 def test_settings_read_open_router_key(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite:///./db.sqlite3")
     monkeypatch.setenv("OPEN_ROUTER_KEY", "chave-openrouter")
+    monkeypatch.setenv("LLM_MODEL", "openrouter/liquid/lfm-3-1.7b:free")
     monkeypatch.delenv("LLM_API_KEY", raising=False)
     settings = Settings()
     assert settings.llm_api_key == "chave-openrouter"

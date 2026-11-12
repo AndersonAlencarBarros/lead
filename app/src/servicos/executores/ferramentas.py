@@ -85,6 +85,8 @@ class ExecutorFerramentas:
         session,
     ) -> dict[str, Any]:
         match nome:
+            case NomeFerramenta.ATUALIZAR_LEAD:
+                return await self._atualizar_lead(argumentos, session)
             case NomeFerramenta.MOVER_ESTAGIO:
                 return await self._mover_estagio(argumentos, session)
             case NomeFerramenta.NOTIFICAR_EQUIPE:
@@ -95,6 +97,15 @@ class ExecutorFerramentas:
                 return await self._consultar_agenda(session)
             case NomeFerramenta.MARCAR_AGENDA:
                 return await self._marcar_agenda(argumentos, session)
+
+    async def _atualizar_lead(self, argumentos, session) -> dict[str, Any]:
+        lead = await self._lead(session)
+        lead.atualizar_dados(
+            nome=argumentos.get("nome"),
+            cidade=argumentos.get("cidade"),
+        )
+        await LeadDominioRepositorio(session).salvar(lead)
+        return {"ok": True, **argumentos}
 
     async def _mover_estagio(self, argumentos, session) -> dict[str, Any]:
         estagio = argumentos["estagio"]
@@ -206,6 +217,7 @@ class ExecutorFerramentas:
             raise TypeError("argumentos_invalidos")
 
         exigidos = {
+            NomeFerramenta.ATUALIZAR_LEAD: (),
             NomeFerramenta.MOVER_ESTAGIO: ("estagio",),
             NomeFerramenta.NOTIFICAR_EQUIPE: ("resumo",),
             NomeFerramenta.TRANSFERIR_HUMANO: ("motivo",),
@@ -218,7 +230,21 @@ class ExecutorFerramentas:
             if not isinstance(valor, str) or not valor.strip():
                 raise ValueError(f"argumento_invalido:{chave}")
 
-        return {chave: argumentos[chave] for chave in exigidos}
+        validados = {chave: argumentos[chave] for chave in exigidos}
+
+        if nome is NomeFerramenta.ATUALIZAR_LEAD:
+            for chave in ("nome", "cidade"):
+                valor = argumentos.get(chave)
+                if valor is None:
+                    continue
+                if not isinstance(valor, str) or not valor.strip():
+                    raise ValueError(f"argumento_invalido:{chave}")
+                validados[chave] = valor.strip()
+
+            if not validados:
+                raise ValueError("argumento_invalido:nome_ou_cidade")
+
+        return validados
 
     async def _auditar(
         self,

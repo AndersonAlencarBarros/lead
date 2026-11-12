@@ -8,6 +8,23 @@ def construir_ferramentas(empresa: Empresa) -> list[dict[str, Any]]:
         {
             "type": "function",
             "function": {
+                "name": "atualizar_lead",
+                "description": (
+                    "Registra o nome ou a cidade confirmados pelo lead."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "nome": {"type": "string"},
+                        "cidade": {"type": "string"},
+                    },
+                    "additionalProperties": False,
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
                 "name": "mover_estagio",
                 "description": (
                     "Move o lead no funil conforme os critérios de qualificação."
