@@ -89,3 +89,22 @@ def test_empresa_ativa_fora_do_horario_nao_pode_atender():
     agora = datetime(2026, 11, 11, 20, 0)
 
     assert _empresa(StatusEmpresa.ATIVA).pode_atender(agora) is False
+
+
+def test_atualizar_configuracao_altera_tom_ia_e_janela_de_resposta():
+    empresa = _empresa(StatusEmpresa.ATIVA)
+    configuracao = ConfiguracaoIA(
+        tom=TomDaIA.FORMAL,
+        pode_dizer_que_e_ia=False,
+        nome_assistente="Doce",
+        horario_atendimento_ia=_intervalo(
+            datetime(2026, 1, 1, 8, 0),
+            datetime(2026, 1, 1, 18, 0),
+        ),
+    )
+
+    empresa.atualizar_configuracao(configuracao, 5)
+
+    assert empresa.configuracao_ia == configuracao
+    assert empresa.janela_de_resposta == 5
+    assert empresa.playbook == playbook_solar()

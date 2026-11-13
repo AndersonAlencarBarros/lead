@@ -7,9 +7,22 @@ from exceptions import EmpresaJaCadastrada
 from infraestrutura import UnidadeDeTrabalho
 from repositorio.empresa import EmpresaDominioRepositorio, EmpresaLeituraRepositorio
 from servicos.serializadores.empresa import (
+    ConfiguracaoIASerializador,
     EmpresaCriacaoSerializador,
     PlaybookSerializador,
 )
+
+
+def montar_configuracao(payload: ConfiguracaoIASerializador) -> ConfiguracaoIA:
+    return ConfiguracaoIA(
+        tom=payload.tom,
+        pode_dizer_que_e_ia=payload.pode_dizer_que_e_ia,
+        nome_assistente=payload.nome_assistente,
+        horario_atendimento_ia=Intervalo(
+            horario_inicio=payload.horario_atendimento_ia.horario_inicio,
+            horario_fim=payload.horario_atendimento_ia.horario_fim,
+        ),
+    )
 
 
 def montar_playbook(payload: PlaybookSerializador) -> Playbook:
@@ -34,22 +47,13 @@ async def criar_empresa(
     if await repo_leitura.buscar_por_tenant_id(payload.tenant_id) is not None:
         raise EmpresaJaCadastrada()
 
-    configuracao = payload.configuracao_ia
     playbook = montar_playbook(payload.playbook)
     empresa = Empresa(
         tenant_id=payload.tenant_id,
         nome=payload.nome,
         status=payload.status,
         telefone_notificacao=payload.telefone_notificacao,
-        configuracao_ia=ConfiguracaoIA(
-            tom=configuracao.tom,
-            pode_dizer_que_e_ia=configuracao.pode_dizer_que_e_ia,
-            nome_assistente=configuracao.nome_assistente,
-            horario_atendimento_ia=Intervalo(
-                horario_inicio=configuracao.horario_atendimento_ia.horario_inicio,
-                horario_fim=configuracao.horario_atendimento_ia.horario_fim,
-            ),
-        ),
+        configuracao_ia=montar_configuracao(payload.configuracao_ia),
         regras_gerais=payload.regras_gerais,
         cidades_atendidas=payload.cidades_atendidas,
         estagios=payload.estagios,

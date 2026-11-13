@@ -64,6 +64,9 @@ async def test_cria_empresa_confeitaria(db_session):
     dados = resposta.json()
     assert dados["tenant_id"] == "confeitaria-encanto"
     assert dados["nome"] == "Confeitaria Encanto"
+    assert dados["janela_de_resposta"] == 5
+    assert dados["configuracao_ia"]["tom"] == "formal"
+    assert dados["configuracao_ia"]["pode_dizer_que_e_ia"] is False
     assert dados["playbook"]["nome"] == "confeitaria-sob-encomenda"
     assert "mover_estagio" in dados["playbook"]["ferramentas"]
     assert "atualizar_lead" in dados["playbook"]["ferramentas"]

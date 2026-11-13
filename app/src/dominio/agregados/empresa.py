@@ -92,6 +92,17 @@ class Empresa(Agregado):
     def atualizar_playbook(self, playbook: Playbook) -> None:
         self.configuracoes = replace(self.configuracoes, playbook=playbook)
 
+    def atualizar_configuracao(
+        self,
+        configuracao_ia: ConfiguracaoIA,
+        janela_de_resposta: float,
+    ) -> None:
+        self.janela_de_resposta = janela_de_resposta
+        self.configuracoes = replace(
+            self.configuracoes,
+            configuracao_ia=configuracao_ia,
+        )
+
     def desativar(self):
         self.status = StatusEmpresa.INATIVA
 

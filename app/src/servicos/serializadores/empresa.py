@@ -139,10 +139,10 @@ EXEMPLO_EMPRESA_CONFEITARIA = {
     "nome": "Confeitaria Encanto",
     "status": "ativa",
     "telefone_notificacao": "5581977776666",
-    "janela_de_resposta": 8,
+    "janela_de_resposta": 5,
     "configuracao_ia": {
-        "tom": "informal",
-        "pode_dizer_que_e_ia": True,
+        "tom": "formal",
+        "pode_dizer_que_e_ia": False,
         "nome_assistente": "Doce",
         "horario_atendimento_ia": {
             "horario_inicio": "2026-01-01T00:00:00",

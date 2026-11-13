@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from config import get_settings
+from config import ProvedorLLM, get_settings
 from dominio.agregados.conversa import Conversa
 from dominio.agregados.empresa import Empresa
 from dominio.objetos_de_valor.conversa import Mensagem
@@ -20,19 +20,18 @@ from infraestrutura.unidade_de_trabalho import Dominio, UnidadeDeTrabalho
 from servicos.executores.conversa import responder_conversa
 from testes.apoio import playbook_solar
 
-MODELO = "openrouter/liquid/lfm-3-1.7b:free"
-
 
 @pytest.fixture(scope="module", autouse=True)
 def llm_disponivel():
-    if not get_settings().llm_api_key:
-        pytest.skip("OPEN_ROUTER_KEY ausente")
+    settings = get_settings()
+    if settings.llm_provider is not ProvedorLLM.OLLAMA and not settings.llm_api_key:
+        pytest.skip(f"chave ausente para {settings.llm_provider.value}")
 
 
 def _provider() -> ProvedorLiteLLM:
     settings = get_settings()
     return ProvedorLiteLLM(
-        modelo=MODELO,
+        modelo=settings.llm_model,
         api_base=settings.llm_api_base,
         api_key=settings.llm_api_key,
         temperatura=0,

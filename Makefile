@@ -43,7 +43,7 @@ test: ## Executa todos os testes com saída detalhada
 test-quick: ## Executa testes rapidamente
 	cd app && poetry run pytest
 
-test-ia: ## Executa testes reais contra OpenRouter
+test-ia: ## Executa testes reais contra o provedor LLM configurado
 	cd app && poetry run pytest testes/integracao/ia -v
 
 ruff: ## Verifica código com Ruff

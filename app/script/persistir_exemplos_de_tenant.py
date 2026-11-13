@@ -21,7 +21,11 @@ sys.path.insert(0, str(APP_DIR))
 
 from infraestrutura.session import Session
 from infraestrutura.unidade_de_trabalho import Dominio, UnidadeDeTrabalho
-from servicos.executores.empresa import criar_empresa, montar_playbook
+from servicos.executores.empresa import (
+    criar_empresa,
+    montar_configuracao,
+    montar_playbook,
+)
 from servicos.serializadores.empresa import (
     EXEMPLO_EMPRESA_CONFEITARIA,
     EXEMPLO_EMPRESA_SOL_NASCENTE,
@@ -41,6 +45,10 @@ async def reseed_tenant(exemplo: dict) -> None:
         existente = await uow.leitura.buscar_por_tenant_id(payload.tenant_id)
         if existente is not None:
             existente.atualizar_playbook(montar_playbook(payload.playbook))
+            existente.atualizar_configuracao(
+                montar_configuracao(payload.configuracao_ia),
+                payload.janela_de_resposta,
+            )
             await uow.dominio.salvar(existente)
             await uow.commit()
             print(f"tenant atualizado: {existente.tenant_id} ({existente.id})")

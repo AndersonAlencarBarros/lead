@@ -9,7 +9,7 @@ consultas de conversas e mensagens.
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [SQLAlchemy](https://www.sqlalchemy.org/) 2.x assíncrono + [psycopg](https://www.psycopg.org/psycopg3/) 3 (Postgres)
 - [Alembic](https://alembic.sqlalchemy.org/) para migrations
-- [LiteLLM](https://docs.litellm.ai/) + OpenRouter para respostas da IA
+- [LiteLLM](https://docs.litellm.ai/) para respostas da IA (OpenRouter, DeepSeek ou Ollama)
 - [Celery](https://docs.celeryq.dev/) + Redis para geração assíncrona
 - [pytest](https://docs.pytest.org/) + TestClient (httpx) + [pytest-asyncio](https://pytest-asyncio.readthedocs.io/) + [testcontainers](https://testcontainers-python.readthedocs.io/)
 
@@ -56,7 +56,7 @@ app/
 poetry install
 cp .env.example .env    # SQLite local por padrão; ajuste para Postgres se necessário
 poetry run alembic -c src/infraestrutura/alembic/alembic.ini upgrade head
-# edite .env e defina OPEN_ROUTER_KEY
+# edite .env e escolha LLM_PROVIDER/chave
 poetry run uvicorn main:app --reload
 ```
 
@@ -70,8 +70,22 @@ make celery
 O webhook persiste a mensagem e enfileira a resposta. O worker gera e grava a
 resposta da IA; a consulta `GET /conversas/...` retorna a última mensagem
 gerada pela IA.
-Ajuste `LLM_MODEL`, `OPEN_ROUTER_KEY` e `CELERY_BROKER_URL` no
-`.env` conforme o ambiente.
+Ajuste `LLM_PROVIDER`, `LLM_MODEL` e `CELERY_BROKER_URL` no `.env`
+conforme o ambiente.
+
+### Provedores de IA
+
+| `LLM_PROVIDER` | Chave | Padrão |
+| --- | --- | --- |
+| `openrouter` | `OPEN_ROUTER_KEY` ou `OPENROUTER_API_KEY` | `openrouter/liquid/lfm-3-1.7b:free` |
+| `deepseek` | `DEEPSEEK_API_KEY` | `deepseek/deepseek-chat` |
+| `ollama` | nenhuma | `ollama/qwen2.5` em `http://localhost:11434` |
+
+`LLM_MODEL` e `LLM_API_BASE` sobrescrevem o padrão do provedor.
+`LLM_API_KEY` sobrescreve qualquer chave específica.
+
+Ollama em Docker: `http://localhost:11434` aponta para o próprio container.
+Use `http://host.docker.internal:11434` ou a rede do host.
 
 Testes:
 
@@ -88,8 +102,8 @@ configurar `DATABASE_URL`.
 
 ### Testes com LLM real
 
-Os testes em `testes/integracao/ia/` chamam a OpenRouter, usando o modelo
-`liquid/lfm-3-1.7b:free`.
+Os testes em `testes/integracao/ia/` chamam o provedor configurado em
+`LLM_PROVIDER`, usando o modelo resolvido de `LLM_MODEL`.
 
 ```bash
 make test-ia
@@ -97,7 +111,8 @@ make test-ia
 poetry run pytest testes/integracao/ia -v
 ```
 
-Se `OPEN_ROUTER_KEY` estiver ausente, os testes são ignorados.
+Se o provedor exigir chave e ela estiver ausente, os testes são ignorados.
+Ollama local não exige chave.
 
 ### Dados de exemplo
 
